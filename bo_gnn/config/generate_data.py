@@ -3,6 +3,8 @@ import time
 import sys
 import joblib as jl
 import unittest
+import csv
+import os
 
 import ecole
 import pathlib
@@ -17,6 +19,41 @@ from environments import Configuring
 from environments import Configuring as Environment
 from rewards import TimeLimitPrimalDualIntegral
 from config_utils import sampleActions
+
+
+def main():
+    solve_random_problems(4, output_file="data/train.csv")
+
+
+def solve_random_problems(
+    n_problems, output_file, n_jobs=-2, time_limit=5 * 60, dry_run=True
+):
+    instance_path = pathlib.Path("../../instances/1_item_placement/train")
+    instance_files = list(map(str, instance_path.glob("*.mps.gz")))
+
+    paramfile = "parameters.pcs"
+
+    actions = sampleActions(paramfile, n_samples=n_problems)
+    instances = random.sample(instance_files, k=n_problems)
+
+    results = jl.Parallel(n_jobs=n_jobs, verbose=100)(
+        jl.delayed(solve_a_problem)(
+            instance,
+            config=action,
+            time_limit=time_limit if not dry_run else 5,
+            dry_run=dry_run,
+        )
+        for instance, action in zip(instances, actions)
+    )
+
+    output_file_exists = os.path.isfile(output_file)
+    with open(output_file, "a") as ofile:
+        writer = csv.DictWriter(ofile, fieldnames=results[0].keys())
+
+        if not output_file_exists:
+            writer.writeheader()
+        for r in results:
+            writer.writerow(r)
 
 
 def solve_a_problem(
@@ -40,14 +77,21 @@ def solve_a_problem(
     )
     obs, _, _, _, _ = env.reset(instance_path)
     _, _, reward, done, info = env.step(config)
+    info.update(config)
     info.update(
         {
             "instance_file": pathlib.PosixPath(instance_path).name,
             "time_limit": time_limit,
+            "initial_primal_bound": instance_info["primal_bound"],
+            "initial_dual_bound": instance_info["dual_bound"],
             "time_limit_primal_dual_integral": reward,
         }
     )
     return info
+
+
+if __name__ == "__main__":
+    main()
 
 
 class TestSolveProblem(unittest.TestCase):
