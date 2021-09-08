@@ -5,6 +5,7 @@ import joblib as jl
 import unittest
 import csv
 import os
+import argparse
 
 import ecole
 import pathlib
@@ -21,20 +22,54 @@ from rewards import TimeLimitPrimalDualIntegral
 from config_utils import sampleActions
 
 
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-n",
+        "--num_instances",
+        help="Number of instances to solve (consider putting multiple of cpus)",
+        type=int,
+    )
+    parser.add_argument(
+        "-o",
+        "--output_file",
+        help="Output csv file",
+        default="data/output.csv",
+        type=str,
+    )
+    parser.add_argument(
+        "-t",
+        "--time_limit",
+        help="Solver time limit (in seconds).",
+        default=5 * 60,
+        type=int,
+    )
+    parser.add_argument("-d", "--dry_run", help="Dry run.", action="store_true")
+
+    args = parser.parse_args()
+    return args
+
+
 def main():
-    solve_random_problems(4, output_file="data/train.csv")
+    args = parse_args()
+    solve_random_instances(
+        n_instances=args.num_instances,
+        output_file=args.output_file,
+        time_limit=args.time_limit,
+        dry_run=args.dry_run,
+    )
 
 
-def solve_random_problems(
-    n_problems, output_file, n_jobs=-2, time_limit=5 * 60, dry_run=True
+def solve_random_instances(
+    n_instances, output_file, n_jobs=-2, time_limit=5 * 60, dry_run=True
 ):
     instance_path = pathlib.Path("../../instances/1_item_placement/train")
     instance_files = list(map(str, instance_path.glob("*.mps.gz")))
 
     paramfile = "parameters.pcs"
 
-    actions = sampleActions(paramfile, n_samples=n_problems)
-    instances = random.sample(instance_files, k=n_problems)
+    actions = sampleActions(paramfile, n_samples=n_instances)
+    instances = random.sample(instance_files, k=n_instances)
 
     results = jl.Parallel(n_jobs=n_jobs, verbose=100)(
         jl.delayed(solve_a_problem)(
