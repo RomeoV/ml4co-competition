@@ -7,6 +7,7 @@ import csv
 import os
 import argparse
 
+import filelock as FileLock
 import ecole
 import pathlib
 import json
@@ -28,6 +29,12 @@ def parse_args():
         "-n",
         "--num_instances",
         help="Number of instances to solve (consider putting multiple of cpus)",
+        type=int,
+    )
+    parser.add_argument(
+        "-j",
+        "--num_jobs",
+        help="Number of jobs at a time (e.g. 1 per thread).",
         type=int,
     )
     parser.add_argument(
@@ -54,6 +61,7 @@ def main():
     args = parse_args()
     solve_random_instances(
         n_instances=args.num_instances,
+        n_jobs=args.num_jobs,
         output_file=args.output_file,
         time_limit=args.time_limit,
         dry_run=args.dry_run,
@@ -81,14 +89,16 @@ def solve_random_instances(
         for instance, action in zip(instances, actions)
     )
 
-    output_file_exists = os.path.isfile(output_file)
-    with open(output_file, "a") as ofile:
-        writer = csv.DictWriter(ofile, fieldnames=results[0].keys())
+    lock = FileLock(f"{output_file}.lck")
+    with lock:
+        output_file_exists = os.path.isfile(output_file)
+        with open(output_file, "a") as ofile:
+            writer = csv.DictWriter(ofile, fieldnames=results[0].keys())
 
-        if not output_file_exists:
-            writer.writeheader()
-        for r in results:
-            writer.writerow(r)
+            if not output_file_exists:
+                writer.writeheader()
+            for r in results:
+                writer.writerow(r)
 
 
 def solve_a_problem(
