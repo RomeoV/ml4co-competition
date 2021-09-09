@@ -6,8 +6,10 @@ import unittest
 import csv
 import os
 import argparse
+import tempfile
+import subprocess
 
-import filelock as FileLock
+from filelock import FileLock
 import ecole
 import pathlib
 import json
@@ -69,36 +71,48 @@ def main():
 
 
 def solve_random_instances(
-    n_instances, output_file, n_jobs=-2, time_limit=5 * 60, dry_run=True
+    n_instances, output_file, n_jobs=-1, time_limit=5 * 60, dry_run=True
 ):
     instance_path = pathlib.Path("../../instances/1_item_placement/train")
     instance_files = list(map(str, instance_path.glob("*.mps.gz")))
 
     paramfile = "parameters.pcs"
 
-    actions = sampleActions(paramfile, n_samples=n_instances)
     instances = random.choices(instance_files, k=n_instances)
+    actions = sampleActions(paramfile, n_samples=n_instances)
 
-    results = jl.Parallel(n_jobs=n_jobs, verbose=100)(
-        jl.delayed(solve_a_problem)(
-            instance,
-            config=action,
-            time_limit=time_limit if not dry_run else 5,
-            dry_run=dry_run,
+    if n_instances > jl.effective_n_jobs(n_jobs=n_jobs):
+
+        def chunks(lst, n):
+            return [lst[i : i + n] for i in range(0, len(lst), n)]
+
+        instance_batches = chunks(instances, jl.effective_n_jobs(n_jobs=n_jobs))
+        action_batches = chunks(actions, jl.effective_n_jobs(n_jobs=n_jobs))
+    else:
+        instance_batches = [instances]
+        action_batches = [actions]
+
+    for instance_batch, action_batch in zip(instance_batches, action_batches):
+        results = jl.Parallel(n_jobs=n_jobs, verbose=100)(
+            jl.delayed(solve_a_problem)(
+                instance,
+                config=action,
+                time_limit=time_limit if not dry_run else 5,
+                dry_run=dry_run,
+            )
+            for instance, action in zip(instance_batch, action_batch)
         )
-        for instance, action in zip(instances, actions)
-    )
 
-    lock = FileLock(f"{output_file}.lck")
-    with lock:
-        output_file_exists = os.path.isfile(output_file)
-        with open(output_file, "a") as ofile:
-            writer = csv.DictWriter(ofile, fieldnames=results[0].keys())
+        lock = FileLock(f"{output_file}.lck")
+        with lock:
+            output_file_new = not os.path.isfile(output_file)
+            with open(output_file, "a") as ofile:
+                writer = csv.DictWriter(ofile, fieldnames=results[0].keys())
 
-            if not output_file_exists:
-                writer.writeheader()
-            for r in results:
-                writer.writerow(r)
+                if output_file_new:
+                    writer.writeheader()
+                for r in results:
+                    writer.writerow(r)
 
 
 def solve_a_problem(
@@ -201,3 +215,27 @@ class TestSolveProblem(unittest.TestCase):
                 time_limit=self.time_limit,
                 dry_run=True,
             )
+
+    def test_solve_random_instances(self):
+        # Note that the context manager already creates the file, i.e. no header will be written
+        with tempfile.NamedTemporaryFile() as tmpfile:
+            solve_random_instances(
+                n_instances=2,
+                n_jobs=1,
+                output_file=tmpfile.name,
+                time_limit=5,
+                dry_run=True,
+            )
+            loc = int(subprocess.check_output(["wc", "-l", tmpfile.name]).split()[0])
+            self.assertEqual(loc, 2, msg=subprocess.check_output(["cat", tmpfile.name]))
+
+        with tempfile.NamedTemporaryFile() as tmpfile:
+            solve_random_instances(
+                n_instances=1,
+                n_jobs=2,
+                output_file=tmpfile.name,
+                time_limit=5,
+                dry_run=True,
+            )
+            loc = int(subprocess.check_output(["wc", "-l", tmpfile.name]).split()[0])
+            self.assertEqual(loc, 1)
