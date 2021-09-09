@@ -69,7 +69,7 @@ def solve_random_instances(
     paramfile = "parameters.pcs"
 
     actions = sampleActions(paramfile, n_samples=n_instances)
-    instances = random.sample(instance_files, k=n_instances)
+    instances = random.choices(instance_files, k=n_instances)
 
     results = jl.Parallel(n_jobs=n_jobs, verbose=100)(
         jl.delayed(solve_a_problem)(
