@@ -1,0 +1,6 @@
+FROM romeov/ml4co-cpu
+RUN mamba install pytorch cudatoolkit=11.1 -c pytorch -c nvidia -c conda-forge -y && \
+    pip install torch-scatter -f https://data.pyg.org/whl/torch-1.9.0+cu111.html && \
+    pip install torch-sparse -f https://data.pyg.org/whl/torch-1.9.0+cu111.html && \
+    pip install torch-geometric && \
+    mamba install -c conda-forge pytorch-lightning -y
