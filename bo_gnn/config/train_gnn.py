@@ -5,7 +5,6 @@ import random
 import pickle
 from typing import Tuple
 
-import ecole
 import torch
 import torch.nn.functional as F
 import numpy as np
@@ -40,10 +39,14 @@ class MilpGNNTrainable(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         instance_batch, config_batch, label_batch = batch
         pred = self.forward((instance_batch, config_batch))
+        nll_loss = F.gaussian_nll_loss(pred[:, 0:1], label_batch, pred[:, 1:2])
         l1_loss = F.l1_loss(pred[:, 0:1], label_batch)
         l2_loss = F.mse_loss(pred[:, 0:1], label_batch)
         # self.log("val_loss", l1_loss, prog_bar=True)
-        self.log_dict({"val_loss_l1": l1_loss, "val_loss_l2": l2_loss}, prog_bar=True)
+        self.log_dict(
+            {"nll_loss": nll_loss, "val_loss_l1": l1_loss, "val_loss_l2": l2_loss},
+            prog_bar=True,
+        )
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=self.hparams.initial_lr)
@@ -52,12 +55,17 @@ class MilpGNNTrainable(pl.LightningModule):
 def main():
     trainer = Trainer(max_epochs=3, gpus=1 if torch.cuda.is_available() else 0)
     model = MilpGNNTrainable()
-    data = DataLoader(
-        MilpDataset("data/output.csv", samples_per_epoch=2048),
+    data_train = DataLoader(
+        MilpDataset("data/output_train.csv", samples_per_epoch=2048),
         batch_size=4,
         drop_last=True,
     )
-    trainer.fit(model, data)
+    data_valid = DataLoader(
+        MilpDataset("data/output_valid.csv", samples_per_epoch=2048),
+        batch_size=4,
+        drop_last=True,
+    )
+    trainer.fit(model, train_dataloaders=data_train, val_dataloaders=data_valid)
 
 
 if __name__ == "__main__":
