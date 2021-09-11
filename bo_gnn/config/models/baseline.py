@@ -34,8 +34,9 @@ class ConfigPerformanceRegressor(torch.nn.Module):
 class MilpGNN(torch.nn.Module):
     def __init__(
         self,
-        hidden_dim: Tuple[int, int] = (64, 64),
-        n_gnn_layers=4,
+        hidden_dim: Tuple[int, int] = (8, 8),
+        out_dim=8,
+        n_gnn_layers=2,
         use_batch_norm: bool = True,
     ):
         super(MilpGNN, self).__init__()
@@ -57,6 +58,9 @@ class MilpGNN(torch.nn.Module):
             ]
         )
         self.pool = tg.nn.global_mean_pool
+        self.out_layer = torch.nn.Linear(
+            in_features=hidden_dim[0], out_features=out_dim
+        )  # we use this to make sure we achieve the correct out_dim
 
         self.loss = F.mse_loss
 
@@ -65,6 +69,7 @@ class MilpGNN(torch.nn.Module):
         for l in self.gnns:
             x = l(x)
         x = self.pool(x.var_feats, x.batch_el)
+        x = self.out_layer(x).relu_()
         return x
 
 
@@ -151,7 +156,7 @@ class InputEmbedding(torch.nn.Module):
 
 
 class ConfigEmbedding(torch.nn.Module):
-    def __init__(self, in_dim=20, hidden_dim=128, out_dim=64):
+    def __init__(self, in_dim=20, hidden_dim=8, out_dim=8):
         super(ConfigEmbedding, self).__init__()
 
         self.input_batch_norm = torch.nn.BatchNorm1d(20)
@@ -166,7 +171,7 @@ class ConfigEmbedding(torch.nn.Module):
 
 
 class RegressionHead(torch.nn.Module):
-    def __init__(self, in_dim=2 * 64, hidden_dim=256, out_dim=2):
+    def __init__(self, in_dim=2 * 8, hidden_dim=8, out_dim=2):
         super(RegressionHead, self).__init__()
 
         self.lin1 = torch.nn.Linear(in_features=in_dim, out_features=hidden_dim)
@@ -181,22 +186,22 @@ class RegressionHead(torch.nn.Module):
 class TestModules(unittest.TestCase):
     def test_config_embedding(self):
         ds = MilpDataset("data/output.csv")
-        dl = tg.data.DataLoader(ds, batch_size=8)
+        dl = tg.data.DataLoader(ds, batch_size=12)
         dl_it = iter(dl)
         instance_batch, config_batch, label_batch = next(dl_it)
         config_emb = ConfigEmbedding()
         y = config_emb(config_batch)
-        self.assertEqual(y.shape, (8, 64))
+        self.assertEqual(y.shape, (12, 8))
         self.assertTrue(y.isfinite().all())
 
     def test_graph_embedding(self):
         ds = MilpDataset("data/output.csv")
-        dl = tg.data.DataLoader(ds, batch_size=8)
+        dl = tg.data.DataLoader(ds, batch_size=12)
         dl_it = iter(dl)
         instance_batch, config_batch, label_batch = next(dl_it)
         graph_emb = MilpGNN()
         y = graph_emb(instance_batch)
-        self.assertEqual(y.shape, (8, 64))
+        self.assertEqual(y.shape, (12, 8))
         self.assertTrue(y.isfinite().all())
 
 
