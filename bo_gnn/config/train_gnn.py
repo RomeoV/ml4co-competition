@@ -44,7 +44,7 @@ class MilpGNNTrainable(pl.LightningModule):
         l2_loss = F.mse_loss(pred[:, 0:1], label_batch)
         # self.log("val_loss", l1_loss, prog_bar=True)
         self.log_dict(
-            {"nll_loss": nll_loss, "val_loss_l1": l1_loss, "val_loss_l2": l2_loss},
+            {"val_nll_loss": nll_loss, "val_loss_l1": l1_loss, "val_loss_l2": l2_loss},
             prog_bar=True,
         )
 
@@ -56,12 +56,12 @@ def main():
     trainer = Trainer(max_epochs=3, gpus=1 if torch.cuda.is_available() else 0)
     model = MilpGNNTrainable()
     data_train = DataLoader(
-        MilpDataset("data/output_train.csv", samples_per_epoch=2048),
+        MilpDataset("data/output_train.csv", folder="train", samples_per_epoch=2048),
         batch_size=4,
         drop_last=True,
     )
     data_valid = DataLoader(
-        MilpDataset("data/output_valid.csv", samples_per_epoch=2048),
+        MilpDataset("data/output_valid.csv", folder="valid", samples_per_epoch=2048),
         batch_size=4,
         drop_last=True,
     )

@@ -185,7 +185,7 @@ class RegressionHead(torch.nn.Module):
 
 class TestModules(unittest.TestCase):
     def test_config_embedding(self):
-        ds = MilpDataset("data/output.csv")
+        ds = MilpDataset("data/output.csv", folder="train")
         dl = tg.data.DataLoader(ds, batch_size=12)
         dl_it = iter(dl)
         instance_batch, config_batch, label_batch = next(dl_it)
@@ -195,7 +195,7 @@ class TestModules(unittest.TestCase):
         self.assertTrue(y.isfinite().all())
 
     def test_graph_embedding(self):
-        ds = MilpDataset("data/output.csv")
+        ds = MilpDataset("data/output.csv", folder="train")
         dl = tg.data.DataLoader(ds, batch_size=12)
         dl_it = iter(dl)
         instance_batch, config_batch, label_batch = next(dl_it)
@@ -207,7 +207,7 @@ class TestModules(unittest.TestCase):
 
 class TestModelEval(unittest.TestCase):
     def test_random_batch(self):
-        ds = MilpDataset("data/output.csv")
+        ds = MilpDataset("data/output.csv", folder="train")
         dl = tg.data.DataLoader(ds, batch_size=8)
         dl_it = iter(dl)
         instance_batch, config_batch, label_batch = next(dl_it)

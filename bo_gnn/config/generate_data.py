@@ -41,6 +41,13 @@ def parse_args():
         type=int,
     )
     parser.add_argument(
+        "-f",
+        "--folder",
+        help="Instance folder to evaluate.",
+        type=str,
+        choices=("train", "valid"),
+    )
+    parser.add_argument(
         "-o",
         "--output_file",
         help="Output csv file",
@@ -65,6 +72,7 @@ def main():
     solve_random_instances_and_periodically_write_to_file(
         n_instances=args.num_instances,
         n_jobs=args.num_jobs,
+        folder=args.folder,
         output_file=args.output_file,
         time_limit=args.time_limit,
         dry_run=args.dry_run,
@@ -72,9 +80,9 @@ def main():
 
 
 def solve_random_instances_and_periodically_write_to_file(
-    n_instances, output_file, n_jobs=-1, time_limit=5 * 60, dry_run=True
+    n_instances, output_file, folder, n_jobs=-1, time_limit=5 * 60, dry_run=True
 ):
-    instance_path = pathlib.Path("../../instances/1_item_placement/train")
+    instance_path = pathlib.Path(f"../../instances/1_item_placement/{folder}")
     instance_files = list(map(str, instance_path.glob("*.mps.gz")))
 
     paramfile = "parameters.pcs"
@@ -255,6 +263,7 @@ class TestSolveProblem(unittest.TestCase):
             solve_random_instances_and_periodically_write_to_file(
                 n_instances=2,
                 n_jobs=1,
+                folder="train",
                 output_file=tmpfile.name,
                 time_limit=5,
                 dry_run=True,
@@ -266,6 +275,7 @@ class TestSolveProblem(unittest.TestCase):
             solve_random_instances_and_periodically_write_to_file(
                 n_instances=1,
                 n_jobs=2,
+                folder="train",
                 output_file=tmpfile.name,
                 time_limit=5,
                 dry_run=True,
@@ -280,6 +290,7 @@ class TestSolveProblem(unittest.TestCase):
             solve_random_instances_and_periodically_write_to_file(
                 n_instances=2,
                 n_jobs=2,
+                folder="train",
                 output_file=tmpfile.name,
                 time_limit=5,
                 dry_run=True,

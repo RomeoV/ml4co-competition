@@ -14,14 +14,16 @@ from data_utils.milp_data import MilpBipartiteData
 
 
 class MilpDataset(torch.utils.data.IterableDataset):
-    def __init__(self, csv_file, samples_per_epoch=1024, instances_dir=None):
+    def __init__(self, csv_file, folder, samples_per_epoch=1024, instances_dir=None):
         self.csv_data_full = pd.read_csv(csv_file)
         self.samples_per_epoch = samples_per_epoch
 
         if instances_dir:
             self.instance_path = pathlib.Path(instances_dir)
         else:
-            self.instance_path = pathlib.Path("../../instances/1_item_placement/train")
+            self.instance_path = pathlib.Path(
+                f"../../instances/1_item_placement/{folder}"
+            )
 
         self.cols = [
             "branching/clamp",
@@ -81,7 +83,7 @@ class MilpDataset(torch.utils.data.IterableDataset):
 
 class TestDataset(unittest.TestCase):
     def test_some_samples(self):
-        ds = MilpDataset(csv_file="data/output.csv")
+        ds = MilpDataset(csv_file="data/output.csv", folder="train")
         ds_it = iter(ds)
 
         for i in range(5):
@@ -95,7 +97,7 @@ class TestDataset(unittest.TestCase):
             self.assertEqual(conf.ndim, 1)
 
     def test_data_loader(self):
-        ds = MilpDataset(csv_file="data/output.csv")
+        ds = MilpDataset(csv_file="data/output.csv", folder="train")
         dl = tg.data.DataLoader(ds, batch_size=16)
         dl_it = iter(dl)
         for i in range(5):
