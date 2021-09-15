@@ -65,9 +65,10 @@ def getParamsFromFile(paramfile) -> List[CSH.Hyperparameter]:
                     params += [
                         CSH.UniformIntegerHyperparameter(
                             paramname,
-                            lower=int(bounds[0]),
+                            lower=max(int(bounds[0]), 1),
                             upper=int(bounds[1]),
                             default_value=int(default),
+                            log=True,
                         )
                     ]
 
