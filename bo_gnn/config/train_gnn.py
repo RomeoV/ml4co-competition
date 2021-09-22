@@ -14,7 +14,7 @@ import torch_geometric as tg
 from pytorch_lightning import Trainer
 from models.baseline import ConfigPerformanceRegressor
 from data_utils.dataset import MilpDataset
-from torch_geometric.data import Data, DataLoader
+from torch_geometric.loader import DataLoader
 
 
 class MilpGNNTrainable(pl.LightningModule):
@@ -53,16 +53,16 @@ class MilpGNNTrainable(pl.LightningModule):
 
 
 def main():
-    trainer = Trainer(max_epochs=3, gpus=1 if torch.cuda.is_available() else 0)
+    trainer = Trainer(max_epochs=20, gpus=1 if torch.cuda.is_available() else 0)
     model = MilpGNNTrainable()
     data_train = DataLoader(
-        MilpDataset("data/output_train.csv", folder="train", samples_per_epoch=2048),
-        batch_size=4,
+        MilpDataset("/Users/jeremyscheurer/Code/ml4comp/romeo/ml4co-competition/instances/romeo_data.csv", folder="train", samples_per_epoch=2048),
+        batch_size=2,
         drop_last=True,
     )
     data_valid = DataLoader(
-        MilpDataset("data/output_valid.csv", folder="valid", samples_per_epoch=2048),
-        batch_size=4,
+        MilpDataset("/Users/jeremyscheurer/Code/ml4comp/romeo/ml4co-competition/instances/romeo_data.csv", folder="train", samples_per_epoch=2048),
+        batch_size=2,
         drop_last=True,
     )
     trainer.fit(model, train_dataloaders=data_train, val_dataloaders=data_valid)
