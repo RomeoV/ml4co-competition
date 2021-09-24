@@ -11,11 +11,11 @@ from data_utils.dataset import MilpDataset
 
 
 class ConfigPerformanceRegressor(torch.nn.Module):
-    def __init__(self):
+    def __init__(self, config_dim):
         super(ConfigPerformanceRegressor, self).__init__()
 
         self.milp_gnn = MilpGNN()
-        self.config_emb = ConfigEmbedding()
+        self.config_emb = ConfigEmbedding(in_dim=config_dim)
         self.regression_head = RegressionHead()
 
     def forward(self, instance_config_tuple):
@@ -156,10 +156,10 @@ class InputEmbedding(torch.nn.Module):
 
 
 class ConfigEmbedding(torch.nn.Module):
-    def __init__(self, in_dim=20, hidden_dim=8, out_dim=8):
+    def __init__(self, in_dim, hidden_dim=8, out_dim=8):
         super(ConfigEmbedding, self).__init__()
 
-        self.input_batch_norm = torch.nn.BatchNorm1d(20)
+        self.input_batch_norm = torch.nn.BatchNorm1d(in_dim)
         self.lin1 = torch.nn.Linear(in_features=in_dim, out_features=hidden_dim)
         self.lin2 = torch.nn.Linear(in_features=hidden_dim, out_features=out_dim)
 

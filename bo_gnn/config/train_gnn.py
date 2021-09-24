@@ -13,17 +13,17 @@ import torch_geometric as tg
 
 from pytorch_lightning import Trainer
 from models.baseline import ConfigPerformanceRegressor
-from data_utils.dataset import MilpDataset
+from data_utils.dataset import MilpDataset, Folder, DataFormat
 from torch_geometric.data import Data, DataLoader
 
 
 class MilpGNNTrainable(pl.LightningModule):
-    def __init__(self, initial_lr=1e-3):
+    def __init__(self, config_dim, initial_lr=1e-3):
         super().__init__()
         self.save_hyperparameters()
         self.initial_lr = initial_lr
 
-        self.model = ConfigPerformanceRegressor()
+        self.model = ConfigPerformanceRegressor(config_dim=config_dim)
 
     def forward(self, x):
         return self.model(x)
@@ -54,14 +54,24 @@ class MilpGNNTrainable(pl.LightningModule):
 
 def main():
     trainer = Trainer(max_epochs=3, gpus=1 if torch.cuda.is_available() else 0)
-    model = MilpGNNTrainable()
+    model = MilpGNNTrainable(config_dim=6)
     data_train = DataLoader(
-        MilpDataset("data/output_train.csv", folder="train", samples_per_epoch=2048),
+        MilpDataset(
+            "data/max_train_data.csv",
+            folder=Folder.TRAIN,
+            data_format=DataFormat.MAX,
+            samples_per_epoch=2048,
+        ),
         batch_size=4,
         drop_last=True,
     )
     data_valid = DataLoader(
-        MilpDataset("data/output_valid.csv", folder="valid", samples_per_epoch=2048),
+        MilpDataset(
+            "data/max_train_data.csv",
+            folder=Folder.TRAIN,
+            data_format=DataFormat.MAX,
+            samples_per_epoch=2048,
+        ),
         batch_size=4,
         drop_last=True,
     )
