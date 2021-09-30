@@ -31,8 +31,17 @@ class MilpDataset(torch.utils.data.Dataset):
         folder: Folder,
         data_format: DataFormat,
         instances_dir=None,
+        dry=False,
     ):
         self.csv_data_full = pd.read_csv(csv_file)
+        if dry:
+            instances = self.csv_data_full.instance_file.unique()
+            chosen_instances = np.random.choice(
+                instances, size=min(3, len(instances)), replace=False
+            )
+            self.csv_data_full = self.csv_data_full[
+                self.csv_data_full.instance_file.isin(chosen_instances)
+            ].reset_index(drop=True)
 
         if instances_dir:
             self.instance_path = pathlib.Path(instances_dir)
