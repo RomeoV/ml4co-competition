@@ -18,7 +18,7 @@ from torch_geometric.data import Data, DataLoader
 
 
 class MilpGNNTrainable(pl.LightningModule):
-    def __init__(self, config_dim, initial_lr=1e-3):
+    def __init__(self, config_dim, initial_lr=5e-4):
         super().__init__()
         self.save_hyperparameters()
         self.initial_lr = initial_lr
@@ -60,19 +60,17 @@ def main():
             "data/max_train_data.csv",
             folder=Folder.TRAIN,
             data_format=DataFormat.MAX,
-            samples_per_epoch=2048,
         ),
-        batch_size=4,
+        batch_size=128,
         drop_last=True,
     )
     data_valid = DataLoader(
         MilpDataset(
-            "data/max_train_data.csv",
+            "data/max_valid_data.csv",
             folder=Folder.TRAIN,
             data_format=DataFormat.MAX,
-            samples_per_epoch=2048,
         ),
-        batch_size=4,
+        batch_size=128,
         drop_last=True,
     )
     trainer.fit(model, train_dataloaders=data_train, val_dataloaders=data_valid)

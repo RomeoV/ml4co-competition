@@ -24,17 +24,15 @@ class Folder(enum.Enum):
     VALID = "valid"
 
 
-class MilpDataset(torch.utils.data.IterableDataset):
+class MilpDataset(torch.utils.data.Dataset):
     def __init__(
         self,
         csv_file,
         folder: Folder,
         data_format: DataFormat,
-        samples_per_epoch=1024,
         instances_dir=None,
     ):
         self.csv_data_full = pd.read_csv(csv_file)
-        self.samples_per_epoch = samples_per_epoch
 
         if instances_dir:
             self.instance_path = pathlib.Path(instances_dir)
@@ -80,35 +78,30 @@ class MilpDataset(torch.utils.data.IterableDataset):
 
         self.csv_data = self.csv_data_full[self.cols]
 
-    def __iter__(self):
-        ind = np.arange(len(self.csv_data))
-        np.random.shuffle(ind)
-
-        ind = ind[: min(self.samples_per_epoch, len(ind))]
-
-        for i in ind:
-            instance_file, primal_dual_int = self.csv_data_full.loc[
-                i, ["instance_file", "time_limit_primal_dual_integral"]
-            ]
-            primal_dual_int = torch.tensor([primal_dual_int], dtype=torch.float32)
-            config_arr = torch.tensor(self.csv_data.loc[i], dtype=torch.float32)
-            with open(
-                os.path.join(
-                    self.instance_path, instance_file.replace(".mps.gz", ".pkl")
-                ),
-                "rb",
-            ) as infile:
-                instance_description_pkl = pickle.load(infile)
-                instance_data = MilpBipartiteData(
-                    var_feats=instance_description_pkl.variable_features,
-                    cstr_feats=instance_description_pkl.constraint_features,
-                    edge_indices=instance_description_pkl.edge_features.indices,
-                    edge_values=instance_description_pkl.edge_features.values,
-                )
-            yield instance_data, config_arr, primal_dual_int
-
     def __len__(self):
-        return self.samples_per_epoch
+        return len(self.csv_data)
+
+    def __getitem__(self, idx):
+        # if torch.is_tensor(idx):
+        #     idx = idx.tolist()
+
+        instance_file, primal_dual_int = self.csv_data_full.loc[
+            idx, ["instance_file", "time_limit_primal_dual_integral"]
+        ]
+        primal_dual_int = torch.tensor([primal_dual_int], dtype=torch.float32)
+        config_arr = torch.tensor(self.csv_data.loc[idx], dtype=torch.float32)
+        with open(
+            os.path.join(self.instance_path, instance_file.replace(".mps.gz", ".pkl")),
+            "rb",
+        ) as infile:
+            instance_description_pkl = pickle.load(infile)
+            instance_data = MilpBipartiteData(
+                var_feats=instance_description_pkl.variable_features,
+                cstr_feats=instance_description_pkl.constraint_features,
+                edge_indices=instance_description_pkl.edge_features.indices,
+                edge_values=instance_description_pkl.edge_features.values,
+            )
+        return instance_data, config_arr, primal_dual_int
 
 
 class TestDataset(unittest.TestCase):
