@@ -23,10 +23,11 @@ from torch_geometric.data import Data, DataLoader, Batch
 
 
 class MilpGNNTrainable(pl.LightningModule):
-    def __init__(self, config_dim, initial_lr=5e-4):
+    def __init__(
+        self, config_dim, optimizer, batch_size, initial_lr=5e-4, scale_labels=True
+    ):
         super().__init__()
         self.save_hyperparameters()
-        self.initial_lr = initial_lr
 
         self.model = ConfigPerformanceRegressor(config_dim=config_dim)
 
@@ -35,23 +36,48 @@ class MilpGNNTrainable(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         instance_batch, config_batch, label_batch = batch
+        if self.hparams.scale_labels:
+            label_batch = (label_batch - self.mu) / self.sig
         pred = self.forward((instance_batch, config_batch))
         loss = F.gaussian_nll_loss(pred[:, 0:1], label_batch, pred[:, 1:2])
+        sigs = pred[:, 1].mean()
+        self.log_dict({"train_loss": loss, "train_sigmas": sigs})
         return loss
 
     def validation_step(self, batch, batch_idx):
         instance_batch, config_batch, label_batch = batch
+        if self.hparams.scale_labels:
+            label_batch = (label_batch - self.mu) / self.sig
         pred = self.forward((instance_batch, config_batch))
         nll_loss = F.gaussian_nll_loss(pred[:, 0:1], label_batch, pred[:, 1:2])
         l1_loss = F.l1_loss(pred[:, 0:1], label_batch)
         l2_loss = F.mse_loss(pred[:, 0:1], label_batch)
+        sigs = pred[:, 1].mean()
         self.log_dict(
-            {"val_nll_loss": nll_loss, "val_loss_l1": l1_loss, "val_loss_l2": l2_loss},
+            {
+                "val_sigmas": sigs,
+                "val_nll_loss": nll_loss,
+                "val_loss_l1": l1_loss,
+                "val_loss_l2": l2_loss,
+            },
             prog_bar=True,
         )
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=self.hparams.initial_lr)
+        if self.hparams.optimizer.lower() == "adam":
+            optimizer = torch.optim.Adam(self.parameters(), lr=self.hparams.initial_lr)
+        elif self.hparams.optimizer.lower() == "sgd":
+            optimizer = torch.optim.SGD(self.parameters(), lr=self.hparams.initial_lr)
+        elif self.hparams.optimizer.lower() == "rmsprop":
+            optimizer = torch.optim.RMSprop(
+                self.parameters(), lr=self.hparams.initial_lr
+            )
+        lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, "min")
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler": lr_scheduler,
+            "monitor": "train_loss",
+        }
 
 
 class EvaluatePredictedParametersCallback(pytorch_lightning.callbacks.Callback):
@@ -157,7 +183,7 @@ def main():
         gpus=1 if torch.cuda.is_available() else 0,
         callbacks=[EvaluatePredictedParametersCallback()],
     )
-    model = MilpGNNTrainable(config_dim=6)
+    model = MilpGNNTrainable(config_dim=6, optimizer="SGD", batch_size=128)
     data_train = DataLoader(
         MilpDataset(
             "data/max_train_data.csv",
@@ -180,6 +206,12 @@ def main():
         batch_size=128,
         drop_last=True,
     )
+    # TODO clean this up
+    mu, sig = (
+        data_train.dataset.csv_data_full.time_limit_primal_dual_integral.mean(),
+        data_train.dataset.csv_data_full.time_limit_primal_dual_integral.std(),
+    )
+    model.mu, model.sig = mu, sig
     trainer.fit(model, train_dataloaders=data_train, val_dataloaders=data_valid)
 
 
