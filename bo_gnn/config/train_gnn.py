@@ -24,7 +24,13 @@ from torch_geometric.data import Data, DataLoader, Batch
 
 class MilpGNNTrainable(pl.LightningModule):
     def __init__(
-        self, config_dim, optimizer, batch_size, initial_lr=5e-4, scale_labels=True
+        self,
+        config_dim,
+        optimizer,
+        batch_size,
+        initial_lr=5e-4,
+        scale_labels=True,
+        n_gnn_layers=1,
     ):
         super().__init__()
         self.save_hyperparameters()
@@ -166,7 +172,7 @@ class EvaluatePredictedParametersCallback(pytorch_lightning.callbacks.Callback):
                 percentiles[k].append(percentile_of_config(v, instance, val_data_df))
 
             percentile_of_default = percentile_of_config(
-                [1, 1, 1, instance, val_data_df]
+                np.array([1, 1, 1]), instance, val_data_df
             )
             percentiles["default"].append(percentile_of_default)
 
@@ -183,7 +189,9 @@ def main():
         gpus=1 if torch.cuda.is_available() else 0,
         callbacks=[EvaluatePredictedParametersCallback()],
     )
-    model = MilpGNNTrainable(config_dim=6, optimizer="SGD", batch_size=128)
+    model = MilpGNNTrainable(
+        config_dim=6, optimizer="SGD", batch_size=128, n_gnn_layers=2
+    )
     data_train = DataLoader(
         MilpDataset(
             "data/max_train_data.csv",

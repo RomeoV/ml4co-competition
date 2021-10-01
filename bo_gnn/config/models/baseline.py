@@ -11,10 +11,10 @@ from data_utils.dataset import MilpDataset
 
 
 class ConfigPerformanceRegressor(torch.nn.Module):
-    def __init__(self, config_dim):
+    def __init__(self, config_dim, n_gnn_layers=1):
         super(ConfigPerformanceRegressor, self).__init__()
 
-        self.milp_gnn = MilpGNN()
+        self.milp_gnn = MilpGNN(n_gnn_layers=n_gnn_layers)
         self.config_emb = ConfigEmbedding(in_dim=config_dim)
         self.regression_head = RegressionHead()
 
