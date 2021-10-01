@@ -153,7 +153,7 @@ class EvaluatePredictedParametersCallback(pytorch_lightning.callbacks.Callback):
 
 def main():
     trainer = Trainer(
-        max_epochs=100,
+        max_epochs=1000,
         gpus=1 if torch.cuda.is_available() else 0,
         callbacks=[EvaluatePredictedParametersCallback()],
     )
@@ -165,6 +165,7 @@ def main():
             data_format=DataFormat.MAX,
             dry=(not torch.cuda.is_available()),
         ),
+        shuffle=True,
         batch_size=128,
         drop_last=True,
     )
@@ -175,6 +176,7 @@ def main():
             data_format=DataFormat.MAX,
             dry=(not torch.cuda.is_available()),
         ),
+        shuffle=True,
         batch_size=128,
         drop_last=True,
     )
