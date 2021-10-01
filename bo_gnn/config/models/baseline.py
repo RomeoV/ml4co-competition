@@ -25,9 +25,9 @@ class ConfigPerformanceRegressor(torch.nn.Module):
 
         x = torch.cat([graph_embedding, config_embedding], dim=-1)
         regression_pred = self.regression_head(x)
-        logmu = regression_pred[:, 0:1]
+        mu = regression_pred[:, 0:1]
         logsig = regression_pred[:, 1:2]  # trick to make sure std is positive
-        regression_pred = torch.cat([torch.exp(logmu), torch.exp(logsig)], dim=-1)
+        regression_pred = torch.cat([mu, torch.exp(logsig)], dim=-1)
         return regression_pred
 
 
@@ -36,8 +36,8 @@ class MilpGNN(torch.nn.Module):
         self,
         hidden_dim: Tuple[int, int] = (8, 8),
         out_dim=8,
-        n_gnn_layers=2,
-        use_batch_norm: bool = True,
+        n_gnn_layers=1,
+        use_batch_norm: bool = False,
     ):
         super(MilpGNN, self).__init__()
 
@@ -164,7 +164,7 @@ class ConfigEmbedding(torch.nn.Module):
         self.lin2 = torch.nn.Linear(in_features=hidden_dim, out_features=out_dim)
 
     def forward(self, x):
-        x = self.input_batch_norm(x)
+        # x = self.input_batch_norm(x)
         x = self.lin1(x).relu_()
         x = self.lin2(x).relu_()
         return x
