@@ -37,8 +37,6 @@ class MilpGNNTrainable(pl.LightningModule):
         instance_batch, config_batch, label_batch = batch
         pred = self.forward((instance_batch, config_batch))
         loss = F.gaussian_nll_loss(pred[:, 0:1], label_batch, pred[:, 1:2])
-        # loss = F.mse_loss(pred[:, 0:1], label_batch)
-        # self.log("my_loss", loss, prog_bar=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -47,7 +45,6 @@ class MilpGNNTrainable(pl.LightningModule):
         nll_loss = F.gaussian_nll_loss(pred[:, 0:1], label_batch, pred[:, 1:2])
         l1_loss = F.l1_loss(pred[:, 0:1], label_batch)
         l2_loss = F.mse_loss(pred[:, 0:1], label_batch)
-        # self.log("val_loss", l1_loss, prog_bar=True)
         self.log_dict(
             {"val_nll_loss": nll_loss, "val_loss_l1": l1_loss, "val_loss_l2": l2_loss},
             prog_bar=True,
@@ -59,12 +56,12 @@ class MilpGNNTrainable(pl.LightningModule):
 
 class EvaluatePredictedParametersCallback(pytorch_lightning.callbacks.Callback):
     def on_train_epoch_end(self, trainer, pl_module):
-        def find_best_configs(model, instance, initial_primal, initial_dual, timelimit):
+        def find_best_configs(model, instance, general_config):
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
             all_config_inputs = torch.stack(
                 [
                     torch.tensor(
-                        [a, b, c, initial_primal, initial_dual, timelimit],
+                        [a, b, c, *general_config],
                         dtype=torch.float32,
                     )
                     for a, b, c in itertools.product(range(4), range(4), range(4))
@@ -124,10 +121,9 @@ class EvaluatePredictedParametersCallback(pytorch_lightning.callbacks.Callback):
                 )
             return instance_data
 
-        percentiles = {"mean": [], "optimistic": [], "pessimistic": []}
+        percentiles = {"mean": [], "optimistic": [], "pessimistic": [], "default": []}
         val_data_df = trainer.val_dataloaders[0].dataset.csv_data_full
 
-        # for instance in np.random.choice(val_data_df.instance_file.unique(), 30):
         for instance in val_data_df.instance_file.unique():
             general_config = val_data_df[val_data_df.instance_file == instance].iloc[
                 0, 3:6
@@ -136,14 +132,17 @@ class EvaluatePredictedParametersCallback(pytorch_lightning.callbacks.Callback):
             best_configs = find_best_configs(
                 pl_module.model,
                 get_instance_data(instance),
-                general_config[0],
-                general_config[1],
-                general_config[2],
+                general_config,
             )
 
             print("compute percentiles")
             for k, v in best_configs.items():
                 percentiles[k].append(percentile_of_config(v, instance, val_data_df))
+
+            percentile_of_default = percentile_of_config(
+                [1, 1, 1, instance, val_data_df]
+            )
+            percentiles["default"].append(percentile_of_default)
 
         percentile_means = {
             f"{k}_pred_percentile": torch.tensor(v).mean()
