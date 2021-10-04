@@ -183,6 +183,14 @@ class EvaluatePredictedParametersCallback(pytorch_lightning.callbacks.Callback):
         self.log_dict(percentile_means, prog_bar=True)
 
 
+def _get_current_git_hash():
+    retval = subprocess.run(
+        ["git", "rev-parse", "HEAD"], capture_output=True, check=True
+    )
+    git_hash = retval.decode("utf-8").strip()
+    return git_hash
+
+
 def main():
     trainer = Trainer(
         max_epochs=1000,
@@ -190,7 +198,11 @@ def main():
         callbacks=[EvaluatePredictedParametersCallback()],
     )
     model = MilpGNNTrainable(
-        config_dim=6, optimizer="SGD", batch_size=128, n_gnn_layers=2
+        config_dim=6,
+        optimizer="SGD",
+        batch_size=128,
+        n_gnn_layers=2,
+        git_hash=_get_current_git_hash(),
     )
     data_train = DataLoader(
         MilpDataset(
