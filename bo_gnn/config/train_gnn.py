@@ -6,6 +6,7 @@ import pickle
 import pathlib
 import itertools
 import scipy
+import subprocess
 from typing import Tuple
 
 import torch
@@ -28,6 +29,7 @@ class MilpGNNTrainable(pl.LightningModule):
         config_dim,
         optimizer,
         batch_size,
+        git_hash,
         initial_lr=5e-4,
         scale_labels=True,
         n_gnn_layers=1,
@@ -78,7 +80,9 @@ class MilpGNNTrainable(pl.LightningModule):
             optimizer = torch.optim.RMSprop(
                 self.parameters(), lr=self.hparams.initial_lr
             )
-        lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, "min")
+        lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer, "min", verbose=True, min_lr=1e-6
+        )
         return {
             "optimizer": optimizer,
             "lr_scheduler": lr_scheduler,
@@ -187,7 +191,7 @@ def _get_current_git_hash():
     retval = subprocess.run(
         ["git", "rev-parse", "HEAD"], capture_output=True, check=True
     )
-    git_hash = retval.decode("utf-8").strip()
+    git_hash = retval.stdout.decode("utf-8").strip()
     return git_hash
 
 
@@ -199,9 +203,9 @@ def main():
     )
     model = MilpGNNTrainable(
         config_dim=6,
-        optimizer="SGD",
+        optimizer="Adam",
         batch_size=128,
-        n_gnn_layers=2,
+        n_gnn_layers=1,
         git_hash=_get_current_git_hash(),
     )
     data_train = DataLoader(
