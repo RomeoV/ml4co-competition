@@ -143,7 +143,9 @@ class EvaluatePredictedParametersCallback(pytorch_lightning.callbacks.Callback):
 
         def get_instance_data(instance_file):
             # TODO clean this up
-            path = pathlib.Path(f"../../instances/1_item_placement/train")
+            path = pathlib.Path(
+                f"../../instances/{pl_module.hparams.problem.value}/train"
+            )
 
             with open(
                 os.path.join(path, instance_file.replace(".mps.gz", ".pkl")),
@@ -208,33 +210,33 @@ def main():
     model = MilpGNNTrainable(
         config_dim=6,
         optimizer="Adam",
-        batch_size=128,
+        batch_size=8,
         n_gnn_layers=1,
         git_hash=_get_current_git_hash(),
         problem=problem,
     )
     data_train = DataLoader(
         MilpDataset(
-            "data/max_train_data.csv",
+            "data/max_train_data_2.csv",
             folder=Folder.TRAIN,
             data_format=DataFormat.MAX,
             problem=problem,
             dry=(not torch.cuda.is_available()),
         ),
         shuffle=True,
-        batch_size=128,
+        batch_size=8,
         drop_last=True,
     )
     data_valid = DataLoader(
         MilpDataset(
-            "data/max_valid_data.csv",
+            "data/max_valid_data_2.csv",
             folder=Folder.TRAIN,
             data_format=DataFormat.MAX,
             problem=problem,
             dry=(not torch.cuda.is_available()),
         ),
         shuffle=True,
-        batch_size=128,
+        batch_size=8,
         drop_last=True,
     )
     # TODO clean this up
