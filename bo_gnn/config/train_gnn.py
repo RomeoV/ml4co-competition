@@ -242,7 +242,7 @@ def main():
             problem=problem,
             dry=(not torch.cuda.is_available()),
         ),
-        shuffle=True,
+        shuffle=False,
         batch_size=8,
         drop_last=True,
         num_workers=3,
