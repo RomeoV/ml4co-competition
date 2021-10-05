@@ -226,6 +226,7 @@ def main():
         shuffle=True,
         batch_size=8,
         drop_last=True,
+        num_workers=3,
     )
     data_valid = DataLoader(
         MilpDataset(
@@ -238,6 +239,7 @@ def main():
         shuffle=True,
         batch_size=8,
         drop_last=True,
+        num_workers=3,
     )
     # TODO clean this up
     mu, sig = (
