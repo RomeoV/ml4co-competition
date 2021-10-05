@@ -38,7 +38,9 @@ class MilpGNNTrainable(pl.LightningModule):
         super().__init__()
         self.save_hyperparameters()
 
-        self.model = ConfigPerformanceRegressor(config_dim=config_dim)
+        self.model = ConfigPerformanceRegressor(
+            config_dim=config_dim, n_gnn_layers=n_gnn_layers
+        )
 
     def forward(self, x):
         return self.model(x)

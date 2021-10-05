@@ -85,21 +85,15 @@ class GNNFwd(torch.nn.Module):
         batch_norm=True,
     ):
         super(GNNFwd, self).__init__()
-        self.Conv = tg.nn.TransformerConv
+        self.Conv = tg.nn.GraphConv
 
         self.node_layer = self.Conv(
             in_channels=in_dim[::-1],
             out_channels=out_dim[0],
-            edge_dim=1,
-            heads=4,
-            concat=False,
         )  # concat=True fails. We average the heads instead (also smaller model).
         self.cstr_layer = self.Conv(
             in_channels=in_dim,
             out_channels=out_dim[1],
-            edge_dim=1,
-            heads=4,
-            concat=False,
         )
         self.batch_norm = batch_norm
         if self.batch_norm:
@@ -118,10 +112,12 @@ class GNNFwd(torch.nn.Module):
         edge_attr = data.edge_attr.unsqueeze(-1)
 
         x_node_ = self.node_layer(
-            x=(x_cstr, x_node), edge_index=data.edge_index, edge_attr=edge_attr
+            x=(x_cstr, x_node), edge_index=data.edge_index, edge_weight=edge_attr
         )
         x_cstr_ = self.cstr_layer(
-            x=(x_node, x_cstr), edge_index=data.edge_index.flip(-2), edge_attr=edge_attr
+            x=(x_node, x_cstr),
+            edge_index=data.edge_index.flip(-2),
+            edge_weight=edge_attr,
         )
 
         if self.residual:
