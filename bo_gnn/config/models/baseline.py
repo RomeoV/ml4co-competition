@@ -18,10 +18,13 @@ class ConfigPerformanceRegressor(torch.nn.Module):
         self.config_emb = ConfigEmbedding(in_dim=config_dim)
         self.regression_head = RegressionHead()
 
-    def forward(self, instance_config_tuple):
+    def forward(self, instance_config_tuple, single_instance=False):
         instance_batch, config_batch = instance_config_tuple
         graph_embedding = self.milp_gnn(instance_batch)
         config_embedding = self.config_emb(config_batch)
+
+        if single_instance:
+            graph_embedding = graph_embedding.repeat((config_embedding.shape[0], 1))
 
         x = torch.cat([graph_embedding, config_embedding], dim=-1)
         regression_pred = self.regression_head(x)

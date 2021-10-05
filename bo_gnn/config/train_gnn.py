@@ -92,7 +92,7 @@ class MilpGNNTrainable(pl.LightningModule):
 
 
 class EvaluatePredictedParametersCallback(pytorch_lightning.callbacks.Callback):
-    def on_train_epoch_end(self, trainer, pl_module):
+    def on_train_epoch_start(self, trainer, pl_module):
         def find_best_configs(model, instance, general_config):
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
             all_config_inputs = torch.stack(
@@ -106,12 +106,12 @@ class EvaluatePredictedParametersCallback(pytorch_lightning.callbacks.Callback):
                 axis=0,
             ).to(device)
 
-            instance_batch = Batch.from_data_list(
-                [instance] * len(all_config_inputs)
-            ).to(device)
+            instance_batch = Batch.from_data_list([instance]).to(device)
 
             model.eval()
-            preds = model((instance_batch, all_config_inputs))
+            preds = model.forward(
+                (instance_batch, all_config_inputs), single_instance=True
+            )
             model.train()
 
             best_config_id = {}
