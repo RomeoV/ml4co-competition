@@ -18,7 +18,7 @@ import torch_geometric as tg
 import pytorch_lightning
 from pytorch_lightning import Trainer
 from models.baseline import ConfigPerformanceRegressor
-from data_utils.dataset import MilpDataset, Folder, DataFormat
+from data_utils.dataset import MilpDataset, Folder, DataFormat, Problem
 from data_utils.milp_data import MilpBipartiteData
 from torch_geometric.data import Data, DataLoader, Batch
 
@@ -30,6 +30,7 @@ class MilpGNNTrainable(pl.LightningModule):
         optimizer,
         batch_size,
         git_hash,
+        problem: Problem,
         initial_lr=5e-4,
         scale_labels=True,
         n_gnn_layers=1,
@@ -164,14 +165,12 @@ class EvaluatePredictedParametersCallback(pytorch_lightning.callbacks.Callback):
             general_config = val_data_df[val_data_df.instance_file == instance].iloc[
                 0, 3:6
             ]  # timelimit, initial_primal, initial_dual
-            print("find best configs")
             best_configs = find_best_configs(
                 pl_module.model,
                 get_instance_data(instance),
                 general_config,
             )
 
-            print("compute percentiles")
             for k, v in best_configs.items():
                 percentiles[k].append(percentile_of_config(v, instance, val_data_df))
 
@@ -196,6 +195,8 @@ def _get_current_git_hash():
 
 
 def main():
+    problem = Problem.TWO
+
     trainer = Trainer(
         max_epochs=1000,
         gpus=1 if torch.cuda.is_available() else 0,
@@ -210,12 +211,14 @@ def main():
         batch_size=128,
         n_gnn_layers=1,
         git_hash=_get_current_git_hash(),
+        problem=problem,
     )
     data_train = DataLoader(
         MilpDataset(
             "data/max_train_data.csv",
             folder=Folder.TRAIN,
             data_format=DataFormat.MAX,
+            problem=problem,
             dry=(not torch.cuda.is_available()),
         ),
         shuffle=True,
@@ -227,6 +230,7 @@ def main():
             "data/max_valid_data.csv",
             folder=Folder.TRAIN,
             data_format=DataFormat.MAX,
+            problem=problem,
             dry=(not torch.cuda.is_available()),
         ),
         shuffle=True,

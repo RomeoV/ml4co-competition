@@ -24,15 +24,23 @@ class Folder(enum.Enum):
     VALID = "valid"
 
 
+class Problem(enum.Enum):
+    ONE = "1_item_placement"
+    TWO = "2_load_balancing"
+    THREE = "3_anonymoud"
+
+
 class MilpDataset(torch.utils.data.Dataset):
     def __init__(
         self,
         csv_file,
         folder: Folder,
         data_format: DataFormat,
+        problem: Problem,
         instances_dir=None,
         dry=False,
     ):
+        self.problem = problem
         self.csv_data_full = pd.read_csv(csv_file)
         if dry:
             instances = self.csv_data_full.instance_file.unique()
@@ -47,7 +55,7 @@ class MilpDataset(torch.utils.data.Dataset):
             self.instance_path = pathlib.Path(instances_dir)
         else:
             self.instance_path = pathlib.Path(
-                f"../../instances/1_item_placement/{folder.value}"
+                f"../../instances/{problem.value}/{folder.value}"
             )
 
         if data_format is DataFormat.ROMEO:
