@@ -51,11 +51,14 @@ class MilpGNNTrainable(pl.LightningModule):
             ]
         )
 
-    def forward(self, x):
+    def forward(self, x, single_instance=False):
         instance_batch, config_batch = x  # we have to clone those
         predictions = torch.stack(
             [
-                model((instance_batch.clone(), config_batch.clone()))
+                model.forward(
+                    (instance_batch.clone(), config_batch.clone()),
+                    single_instance=single_instance,
+                )
                 for model in self.model_ensemble
             ],
             axis=1,
@@ -117,7 +120,7 @@ class MilpGNNTrainable(pl.LightningModule):
 
 class EvaluatePredictedParametersCallback(pytorch_lightning.callbacks.Callback):
     def on_train_epoch_start(self, trainer, pl_module):
-        def find_best_configs(model, instance, general_config):
+        def find_best_configs(pl_module, instance, general_config):
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
             all_config_inputs = torch.stack(
                 [
@@ -132,11 +135,11 @@ class EvaluatePredictedParametersCallback(pytorch_lightning.callbacks.Callback):
 
             instance_batch = Batch.from_data_list([instance]).to(device)
 
-            model.eval()
-            preds, mean_mu, mean_var, epi_var = model.forward(
+            pl_module.eval()
+            preds, mean_mu, mean_var, epi_var = pl_module.forward(
                 (instance_batch, all_config_inputs), single_instance=True
             )
-            model.train()
+            pl_module.train()
 
             best_config_id = {}
             best_config_id["mean"] = mean_mu.argmin()
@@ -192,7 +195,7 @@ class EvaluatePredictedParametersCallback(pytorch_lightning.callbacks.Callback):
                 0, 3:6
             ]  # timelimit, initial_primal, initial_dual
             best_configs = find_best_configs(
-                pl_module.model,
+                pl_module,
                 get_instance_data(instance),
                 general_config,
             )
@@ -227,7 +230,7 @@ def main():
         max_epochs=1000,
         gpus=1 if torch.cuda.is_available() else 0,
         callbacks=[
-            # EvaluatePredictedParametersCallback(),
+            EvaluatePredictedParametersCallback(),
             pytorch_lightning.callbacks.LearningRateMonitor(logging_interval="epoch"),
         ],
     )
