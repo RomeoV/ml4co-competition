@@ -235,8 +235,9 @@ def main():
         config_dim=6,
         optimizer="Adam",
         batch_size=8,
-        n_gnn_layers=4,
-        gnn_hidden_layers=32,
+        n_gnn_layers=1,
+        gnn_hidden_layers=8,
+        ensemble_size=3,
         git_hash=_get_current_git_hash(),
         problem=problem,
     )
