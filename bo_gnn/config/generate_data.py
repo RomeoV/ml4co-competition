@@ -30,10 +30,17 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "-n",
-        "--num_instances",
-        help="Number of instances to solve (consider putting multiple of cpus)",
-        type=int,
+        "--task_name",
+        help="Task name",
+        choices=("1_item_placement", "2_load_balancing", "3_anonymous"),
     )
+    parser.add_argument(
+        "-p",
+        "--path_to_instances",
+        help="Give path to instances ",
+        default="../../instances/"
+    )
+
     parser.add_argument(
         "-j",
         "--num_jobs",
@@ -58,9 +65,24 @@ def parse_args():
         "-t",
         "--time_limit",
         help="Solver time limit (in seconds).",
-        default=5 * 60,
+        default=900,
         type=int,
     )
+    parser.add_argument(
+        "-s",
+        "--start_instance_number",
+        help="Run from what starting instance number",
+        required=True,
+        type=int,
+    )
+    parser.add_argument(
+        "-e",
+        "--end_instance_number",
+        help="Run up to end instance number",
+        required=True,
+        type=int,
+    )
+
     parser.add_argument("-d", "--dry_run", help="Dry run.", action="store_true")
 
     args = parser.parse_args()
@@ -69,27 +91,37 @@ def parse_args():
 
 def main():
     args = parse_args()
-    solve_random_instances_and_periodically_write_to_file(
-        n_instances=args.num_instances,
+    solve_instances_and_periodically_write_to_file(
+        path_to_instances=args.path_to_instances,
         n_jobs=args.num_jobs,
         folder=args.folder,
         output_file=args.output_file,
         time_limit=args.time_limit,
         dry_run=args.dry_run,
+        start_instance_number=args.start_instance_number,
+        end_instance_number=args.end_instance_number,
+        task_name=args.task_name,
     )
 
 
-def solve_random_instances_and_periodically_write_to_file(
-    n_instances, output_file, folder, n_jobs=-1, time_limit=5 * 60, dry_run=True
+def solve_instances_and_periodically_write_to_file(
+    path_to_instances: str,
+    output_file,
+    folder,
+    start_instance_number: int,
+    end_instance_number: int,
+    n_jobs=-1,
+    time_limit=900,
+    dry_run=True,
+    task_name: str = "1_item_placement",
 ):
-    instance_path = pathlib.Path(f"../../instances/1_item_placement/{folder}")
-    instance_files = list(map(str, instance_path.glob("*.mps.gz")))
+    instance_path = pathlib.Path(f"{path_to_instances}/{task_name}/{folder}")
+    instance_files = [os.path.join(instance_path, "{}.mps.gz".format(instance_id)) for instance_id in range(start_instance_number, end_instance_number)]
 
     paramfile = "parameters.pcs"
     csv_fmt_fct = _makeMapCategoricalsToNumericalLevels(paramfile)
 
-    instances = random.choices(instance_files, k=n_instances)
-    actions = sampleActions(paramfile, n_samples=n_instances)
+    actions = sampleActions(paramfile, n_samples=5)
 
     # Batch problems so that we can write to file after each batch.
     # This is useful when we run a very large number of instances which might fail
@@ -260,7 +292,7 @@ class TestSolveProblem(unittest.TestCase):
     def test_solve_random_instances_and_periodically_write_to_file(self):
         # Note that the context manager already creates the file, i.e. no header will be written
         with tempfile.NamedTemporaryFile() as tmpfile:
-            solve_random_instances_and_periodically_write_to_file(
+            solve_instances_and_periodically_write_to_file(
                 n_instances=2,
                 n_jobs=1,
                 folder="train",
@@ -272,7 +304,7 @@ class TestSolveProblem(unittest.TestCase):
             self.assertEqual(loc, 3, msg=subprocess.check_output(["cat", tmpfile.name]))
 
         with tempfile.NamedTemporaryFile() as tmpfile:
-            solve_random_instances_and_periodically_write_to_file(
+            solve_instances_and_periodically_write_to_file(
                 n_instances=1,
                 n_jobs=2,
                 folder="train",
@@ -287,7 +319,7 @@ class TestSolveProblem(unittest.TestCase):
         import pandas as pd
 
         with tempfile.NamedTemporaryFile(mode="w") as tmpfile:
-            solve_random_instances_and_periodically_write_to_file(
+            solve_instances_and_periodically_write_to_file(
                 n_instances=2,
                 n_jobs=2,
                 folder="train",
