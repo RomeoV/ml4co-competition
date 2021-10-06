@@ -76,7 +76,10 @@ class MilpGNNTrainable(pl.LightningModule):
         loss = F.gaussian_nll_loss(pred[:, :, 0], label_batch, pred[:, :, 1])
         sigs = pred[:, :, 1].mean(axis=1).sqrt()
         self.log_dict(
-            {"train_loss": loss, "train_sigmas": sigs}, on_step=False, on_epoch=True
+            {"train_loss": loss, "train_sigmas": sigs},
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
         )
         return loss
 
@@ -224,7 +227,7 @@ def _get_current_git_hash():
 
 
 def main():
-    problem = Problem.ONE
+    problem = Problem.TWO
 
     trainer = Trainer(
         max_epochs=1000,
@@ -246,7 +249,7 @@ def main():
     )
     data_train = DataLoader(
         MilpDataset(
-            "data/max_train_data.csv",
+            "data/max_train_data_2.csv",
             folder=Folder.TRAIN,
             data_format=DataFormat.MAX,
             problem=problem,
@@ -259,7 +262,7 @@ def main():
     )
     data_valid = DataLoader(
         MilpDataset(
-            "data/max_valid_data.csv",
+            "data/max_valid_data_2.csv",
             folder=Folder.TRAIN,
             data_format=DataFormat.MAX,
             problem=problem,
