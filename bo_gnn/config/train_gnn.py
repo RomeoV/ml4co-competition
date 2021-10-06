@@ -35,41 +35,60 @@ class MilpGNNTrainable(pl.LightningModule):
         scale_labels=True,
         n_gnn_layers=1,
         gnn_hidden_layers=8,
+        ensemble_size=3,
     ):
         super().__init__()
         self.save_hyperparameters()
 
-        self.model = ConfigPerformanceRegressor(
-            config_dim=config_dim,
-            n_gnn_layers=n_gnn_layers,
-            gnn_hidden_layers=gnn_hidden_layers,
+        self.model_ensemble = torch.nn.ModuleList(
+            [
+                ConfigPerformanceRegressor(
+                    config_dim=config_dim,
+                    n_gnn_layers=n_gnn_layers,
+                    gnn_hidden_layers=gnn_hidden_layers,
+                )
+                for i in range(ensemble_size)
+            ]
         )
 
     def forward(self, x):
-        return self.model(x)
+        instance_batch, config_batch = x  # we have to clone those
+        predictions = torch.stack(
+            [
+                model((instance_batch.clone(), config_batch.clone()))
+                for model in self.model_ensemble
+            ],
+            axis=1,
+        )
+        mean_mu = predictions[:, :, 0:1].mean(axis=1)
+        mean_var = predictions[:, :, 1:2].mean(axis=1)
+        epi_var = (predictions[:, :, 0] - mean_mu).pow(2).mean(axis=1)
+        return predictions, mean_mu, mean_var, epi_var
 
     def training_step(self, batch, batch_idx):
         instance_batch, config_batch, label_batch = batch
         if self.hparams.scale_labels:
             label_batch = (label_batch - self.mu) / self.sig
-        pred = self.forward((instance_batch, config_batch))
-        loss = F.gaussian_nll_loss(pred[:, 0:1], label_batch, pred[:, 1:2])
-        sigs = pred[:, 1].mean()
-        self.log_dict({"train_loss": loss, "train_sigmas": sigs})
+        pred = self.forward((instance_batch, config_batch))[0]
+        loss = F.gaussian_nll_loss(pred[:, :, 0], label_batch, pred[:, :, 1])
+        sigs = pred[:, :, 1].mean(axis=1).sqrt()
+        self.log_dict(
+            {"train_loss": loss, "train_sigmas": sigs}, on_step=False, on_epoch=True
+        )
         return loss
 
     def validation_step(self, batch, batch_idx):
         instance_batch, config_batch, label_batch = batch
         if self.hparams.scale_labels:
             label_batch = (label_batch - self.mu) / self.sig
-        pred = self.forward((instance_batch, config_batch))
-        nll_loss = F.gaussian_nll_loss(pred[:, 0:1], label_batch, pred[:, 1:2])
-        l1_loss = F.l1_loss(pred[:, 0:1], label_batch)
-        l2_loss = F.mse_loss(pred[:, 0:1], label_batch)
-        sigs = pred[:, 1].mean()
+        pred, mean_mu, mean_var, epi_var = self.forward((instance_batch, config_batch))
+        nll_loss = F.gaussian_nll_loss(mean_mu, label_batch, mean_var)
+        l1_loss = F.l1_loss(mean_mu, label_batch)
+        l2_loss = F.mse_loss(mean_mu, label_batch)
         self.log_dict(
             {
-                "val_sigmas": sigs,
+                "val_sigmas": mean_var.sqrt(),
+                "val_epi_sigmas": epi_var.sqrt(),
                 "val_nll_loss": nll_loss,
                 "val_loss_l1": l1_loss,
                 "val_loss_l2": l2_loss,
@@ -114,15 +133,15 @@ class EvaluatePredictedParametersCallback(pytorch_lightning.callbacks.Callback):
             instance_batch = Batch.from_data_list([instance]).to(device)
 
             model.eval()
-            preds = model.forward(
+            preds, mean_mu, mean_var, epi_var = model.forward(
                 (instance_batch, all_config_inputs), single_instance=True
             )
             model.train()
 
             best_config_id = {}
-            best_config_id["mean"] = preds[:, 0].argmin()
-            best_config_id["optimistic"] = (preds[:, 0] - preds[:, 1]).argmin()
-            best_config_id["pessimistic"] = (preds[:, 0] + preds[:, 1]).argmin()
+            best_config_id["mean"] = mean_mu.argmin()
+            best_config_id["optimistic"] = (mean_mu - mean_var.sqrt()).argmin()
+            best_config_id["pessimistic"] = (mean_mu + mean_var.sqrt()).argmin()
 
             best_config = {
                 k: all_config_inputs[v, 0:3].to(torch.int32)
@@ -202,13 +221,13 @@ def _get_current_git_hash():
 
 
 def main():
-    problem = Problem.TWO
+    problem = Problem.ONE
 
     trainer = Trainer(
         max_epochs=1000,
         gpus=1 if torch.cuda.is_available() else 0,
         callbacks=[
-            EvaluatePredictedParametersCallback(),
+            # EvaluatePredictedParametersCallback(),
             pytorch_lightning.callbacks.LearningRateMonitor(logging_interval="epoch"),
         ],
     )
@@ -223,7 +242,7 @@ def main():
     )
     data_train = DataLoader(
         MilpDataset(
-            "data/max_train_data_2.csv",
+            "data/max_train_data.csv",
             folder=Folder.TRAIN,
             data_format=DataFormat.MAX,
             problem=problem,
@@ -236,7 +255,7 @@ def main():
     )
     data_valid = DataLoader(
         MilpDataset(
-            "data/max_valid_data_2.csv",
+            "data/max_valid_data.csv",
             folder=Folder.TRAIN,
             data_format=DataFormat.MAX,
             problem=problem,

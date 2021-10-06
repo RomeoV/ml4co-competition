@@ -31,8 +31,8 @@ class ConfigPerformanceRegressor(torch.nn.Module):
         x = torch.cat([graph_embedding, config_embedding], dim=-1)
         regression_pred = self.regression_head(x)
         mu = regression_pred[:, 0:1]
-        logsig = regression_pred[:, 1:2]  # trick to make sure std is positive
-        regression_pred = torch.cat([mu, torch.exp(logsig)], dim=-1)
+        logvar = regression_pred[:, 1:2]  # trick to make sure std is positive
+        regression_pred = torch.cat([mu, torch.exp(logvar)], dim=-1)
         return regression_pred
 
 
