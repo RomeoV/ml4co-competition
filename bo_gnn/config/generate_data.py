@@ -127,13 +127,11 @@ def solve_instances_and_periodically_write_to_file(
     number_of_random_seeds: int = 1,
 ):
     instance_path = pathlib.Path(f"{path_to_instances}/{task_name}/{folder}")
-    instance_paths = [os.path.join(instance_path, "{}_{}.mps.gz".format(task_name[2:], instance_id)) for instance_id in range(start_instance_number, end_instance_number)]
+    instance_paths = [os.path.join(instance_path, f"{task_name[2:]}_{instance_id}.mps.gz") for instance_id in range(start_instance_number, end_instance_number)]
 
-    paramfile = "parameters.pcs"
-    csv_fmt_fct = _makeMapCategoricalsToNumericalLevels(paramfile)
 
     #actions = sampleActions(paramfile, n_samples=5)
-    number_of_instances = end_instance_number - start_instance_number
+    #number_of_instances = end_instance_number - start_instance_number
 
     all_instances = []
     all_actions = []
@@ -182,13 +180,19 @@ def solve_a_problem(
 
     if not dry_run:
         model.optimize()
+        config_id_to_enumeration = {
+            i: setting for i, setting
+            in enumerate(itertools.product(range(4), repeat=3))
+        }
         info.update(
             {
+                "presolve_config_encoding": config_id_to_enumeration[config_id][0],
+                "heuristic_config_encoding":config_id_to_enumeration[config_id][1],
+                "separating_config_encoding":config_id_to_enumeration[config_id][2],
                 "instance_file": pathlib.PosixPath(instance_path).name,
                 "time_limit": time_limit,
                 "initial_primal_bound": instance_info["primal_bound"],
                 "initial_dual_bound": instance_info["dual_bound"],
-                "config_id": config_id,
                 "time_limit_primal_dual_integral": model.getPrimalDualIntegral(),
             }
         )
@@ -212,20 +216,6 @@ def _write_results_to_csv(
                 writer.writeheader()
             for r in results:
                 writer.writerow(r)
-
-
-def _makeMapCategoricalsToNumericalLevels(paramfile):
-    params = getParamsFromFile(paramfile)
-
-    def mapCategoricalsToNumericalLevels(results: Dict):
-        for p in filter(lambda p: isinstance(p, CS.CategoricalHyperparameter), params):
-            if p.name in results and isinstance(results[p.name], str):
-                results[f"{p.name}_cat"] = results[p.name]
-                results[p.name] = p.choices.index(results[p.name])
-        return results
-
-    return mapCategoricalsToNumericalLevels
-
 
 def _to_batches(full_list, n_instances, n_jobs):
     if n_instances > jl.effective_n_jobs(n_jobs=n_jobs):
@@ -358,13 +348,3 @@ class TestSolveProblem(unittest.TestCase):
 class TestUtilityFunctions(unittest.TestCase):
     def setUp(self):
         self.paramfile = "parameters.pcs"
-
-    def test_categorical_to_numerical_formatter(self):
-        d = {"branching/scorefunc": "q"}
-        fmt_fnc = _makeMapCategoricalsToNumericalLevels(self.paramfile)
-        d = fmt_fnc(d)
-
-        self.assertIn("branching/scorefunc", d)
-        self.assertIn("branching/scorefunc_cat", d)
-        self.assertIsInstance(d["branching/scorefunc"], int, msg=d)
-        self.assertIsInstance(d["branching/scorefunc_cat"], str, msg=d)
