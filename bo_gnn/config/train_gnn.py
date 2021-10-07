@@ -248,8 +248,8 @@ def main():
         config_dim=6,
         optimizer="Adam",
         batch_size=8,
-        n_gnn_layers=1,
-        gnn_hidden_layers=8,
+        n_gnn_layers=4,
+        gnn_hidden_layers=16,
         ensemble_size=3,
         git_hash=_get_current_git_hash(),
         problem=problem,
@@ -263,7 +263,7 @@ def main():
             dry=(not torch.cuda.is_available()),
         ),
         shuffle=True,
-        batch_size=8,
+        batch_size=128,
         drop_last=True,
         num_workers=3,
     )
@@ -276,7 +276,7 @@ def main():
             dry=(not torch.cuda.is_available()),
         ),
         shuffle=False,
-        batch_size=8,
+        batch_size=128,
         drop_last=True,
         num_workers=3,
     )
