@@ -3,6 +3,7 @@ import itertools
 import os
 import pyscipopt as pyopt
 from collections import OrderedDict
+import json
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--nodry', default=False, action='store_true')

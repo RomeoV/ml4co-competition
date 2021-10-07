@@ -1,6 +1,7 @@
 import random
 import time
 import sys
+import pyscipopt as pyopt
 import joblib as jl
 import unittest
 import csv
@@ -8,6 +9,7 @@ import os
 import argparse
 import tempfile
 import subprocess
+import itertools
 
 from filelock import FileLock
 import ecole
@@ -114,66 +116,74 @@ def solve_instances_and_periodically_write_to_file(
     time_limit=900,
     dry_run=True,
     task_name: str = "1_item_placement",
+    number_of_random_seeds: int = 1,
 ):
     instance_path = pathlib.Path(f"{path_to_instances}/{task_name}/{folder}")
-    instance_files = [os.path.join(instance_path, "{}.mps.gz".format(instance_id)) for instance_id in range(start_instance_number, end_instance_number)]
+    instance_paths = [os.path.join(instance_path, "{}_{}.mps.gz".format(task_name[2:], instance_id)) for instance_id in range(start_instance_number, end_instance_number)]
 
     paramfile = "parameters.pcs"
     csv_fmt_fct = _makeMapCategoricalsToNumericalLevels(paramfile)
 
-    actions = sampleActions(paramfile, n_samples=5)
+    #actions = sampleActions(paramfile, n_samples=5)
+    number_of_instances = end_instance_number - start_instance_number
 
+    all_instances = []
+    all_actions = []
+    for instance in instance_paths:
+        all_instances.append([instance] * 64)
+        all_actions.append([{'config_id': config_id, 'random_seed': random_seed} for config_id, random_seed in itertools.product(range(64), range(number_of_random_seeds))])
+
+    assert len(all_instances) == len(all_actions)
+    assert len(all_instances[0]) == len(all_actions[0])
     # Batch problems so that we can write to file after each batch.
     # This is useful when we run a very large number of instances which might fail
     # late into the problem solving (e.g. running out of RAM).
-    instance_batches = _to_batches(instances, n_instances=n_instances, n_jobs=n_jobs)
-    action_batches = _to_batches(actions, n_instances=n_instances, n_jobs=n_jobs)
+    #all_instances_batched = _to_batches(all_instances, n_instances=number_of_instances, n_jobs=n_jobs)
+    #all_actions_batched = _to_batches(all_actions, n_instances=number_of_instances, n_jobs=n_jobs)
 
-    for instance_batch, action_batch in zip(instance_batches, action_batches):
+
+    for instances, actions in zip(all_instances, all_actions):
         results = jl.Parallel(n_jobs=n_jobs, verbose=100)(
             jl.delayed(solve_a_problem)(
                 instance,
-                config=action,
+                parameters=action,
                 time_limit=time_limit if not dry_run else 5,
                 dry_run=dry_run,
             )
-            for instance, action in zip(instance_batch, action_batch)
+            for instance, action in zip(instances, actions)
         )
 
         _write_results_to_csv(output_file, results, fmt_fcts=[csv_fmt_fct])
 
 
 def solve_a_problem(
-    instance_path, config: Dict = {}, time_limit: int = 20, dry_run: bool = False
+    instance_path: str, parameters: Dict[str,int], time_limit: int = 900, dry_run: bool = False,
 ):
-    integral_function = TimeLimitPrimalDualIntegral()
     with open(instance_path.replace(".mps.gz", ".json")) as f:
         instance_info = json.load(f)
 
-    integral_function.set_parameters(
-        initial_primal_bound=instance_info["primal_bound"],
-        initial_dual_bound=instance_info["dual_bound"],
-        objective_offset=0,
-    )
+    config_id = parameters["config_id"]
 
-    env = Environment(
-        time_limit=time_limit,
-        observation_function=ec.observation.MilpBipartite(),
-        reward_function=integral_function,
-        scip_params={"limits/memory": 19 * 1024 if not dry_run else 2 * 1024},
-    )
-    obs, _, _, _, _ = env.reset(instance_path)
-    _, _, reward, done, info = env.step(config)
-    info.update(config)
-    info.update(
-        {
-            "instance_file": pathlib.PosixPath(instance_path).name,
-            "time_limit": time_limit,
-            "initial_primal_bound": instance_info["primal_bound"],
-            "initial_dual_bound": instance_info["dual_bound"],
-            "time_limit_primal_dual_integral": reward,
-        }
-    )
+    model = pyopt.Model()
+    model.readProblem(instance_path)
+    model.readParams(f"meta_configs/config-{config_id}.set")
+    model.setParam("limits/time", time_limit)
+    model.setParam("randomization/randomseedshift", parameters["random_seed"])
+
+    info = {}
+
+    if not dry_run:
+        model.optimize()
+        info.update(
+            {
+                "instance_file": pathlib.PosixPath(instance_path).name,
+                "time_limit": time_limit,
+                "initial_primal_bound": instance_info["primal_bound"],
+                "initial_dual_bound": instance_info["dual_bound"],
+                "config_id": config_id,
+                "time_limit_primal_dual_integral": model.getPrimalDualIntegral(),
+            }
+        )
     return info
 
 
