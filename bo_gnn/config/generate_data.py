@@ -84,6 +84,13 @@ def parse_args():
         required=True,
         type=int,
     )
+    parser.add_argument(
+        "-r",
+        "--number_of_random_seeds",
+        help="How many random seeds to use",
+        required=True,
+        type=int,
+    )
 
     parser.add_argument("-d", "--dry_run", help="Dry run.", action="store_true")
 
@@ -103,6 +110,7 @@ def main():
         start_instance_number=args.start_instance_number,
         end_instance_number=args.end_instance_number,
         task_name=args.task_name,
+        number_of_random_seeds=args.number_of_random_seeds
     )
 
 
@@ -130,7 +138,7 @@ def solve_instances_and_periodically_write_to_file(
     all_instances = []
     all_actions = []
     for instance in instance_paths:
-        all_instances.append([instance] * 64)
+        all_instances.append([instance] * 64*number_of_random_seeds)
         all_actions.append([{'config_id': config_id, 'random_seed': random_seed} for config_id, random_seed in itertools.product(range(64), range(number_of_random_seeds))])
 
     assert len(all_instances) == len(all_actions)
