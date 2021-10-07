@@ -74,9 +74,16 @@ class MilpGNNTrainable(pl.LightningModule):
             label_batch = (label_batch - self.mu) / self.sig
         pred = self.forward((instance_batch, config_batch))[0]
         loss = F.gaussian_nll_loss(pred[:, :, 0], label_batch, pred[:, :, 1])
+        l1_loss = F.l1_loss(pred[:, :, 0], label_batch)
+        l2_loss = F.mse_loss(pred[:, :, 0], label_batch)
         sigs = pred[:, :, 1].mean(axis=1).sqrt()
         self.log_dict(
-            {"train_loss": loss, "train_sigmas": sigs},
+            {
+                "train_loss": loss,
+                "train_sigmas": sigs,
+                "train_l1": l1_loss,
+                "train_l2": l2_loss,
+            },
             on_step=False,
             on_epoch=True,
             prog_bar=True,
