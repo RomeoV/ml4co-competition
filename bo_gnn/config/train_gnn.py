@@ -234,7 +234,7 @@ def _get_current_git_hash():
 
 
 def main():
-    problem = Problem.TWO
+    problem = Problem.ONE
 
     trainer = Trainer(
         max_epochs=1000,
@@ -256,7 +256,7 @@ def main():
     )
     data_train = DataLoader(
         MilpDataset(
-            "data/max_train_data_2.csv",
+            "data/max_train_data.csv",
             folder=Folder.TRAIN,
             data_format=DataFormat.MAX,
             problem=problem,
@@ -269,7 +269,7 @@ def main():
     )
     data_valid = DataLoader(
         MilpDataset(
-            "data/max_valid_data_2.csv",
+            "data/max_valid_data.csv",
             folder=Folder.TRAIN,
             data_format=DataFormat.MAX,
             problem=problem,
