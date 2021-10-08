@@ -130,25 +130,24 @@ def solve_instances_and_periodically_write_to_file(
     instance_paths = [os.path.join(instance_path, f"{task_name[2:]}_{instance_id}.mps.gz") for instance_id in range(start_instance_number, end_instance_number)]
 
 
-    #actions = sampleActions(paramfile, n_samples=5)
-    #number_of_instances = end_instance_number - start_instance_number
+    number_of_instances = end_instance_number - start_instance_number
 
     all_instances = []
     all_actions = []
     for instance in instance_paths:
-        all_instances.append([instance] * 64*number_of_random_seeds)
-        all_actions.append([{'config_id': config_id, 'random_seed': random_seed} for config_id, random_seed in itertools.product(range(64), range(number_of_random_seeds))])
+        all_instances += [instance] * 64*number_of_random_seeds
+        all_actions += [{'config_id': config_id, 'random_seed': random_seed} for config_id, random_seed in itertools.product(range(64), range(number_of_random_seeds))]
 
     assert len(all_instances) == len(all_actions)
-    assert len(all_instances[0]) == len(all_actions[0])
+
     # Batch problems so that we can write to file after each batch.
     # This is useful when we run a very large number of instances which might fail
     # late into the problem solving (e.g. running out of RAM).
-    #all_instances_batched = _to_batches(all_instances, n_instances=number_of_instances, n_jobs=n_jobs)
-    #all_actions_batched = _to_batches(all_actions, n_instances=number_of_instances, n_jobs=n_jobs)
+    all_instances_batched = _to_batches(all_instances, n_instances=number_of_instances, n_jobs=n_jobs)
+    all_actions_batched = _to_batches(all_actions, n_instances=number_of_instances, n_jobs=n_jobs)
 
 
-    for instances, actions in zip(all_instances, all_actions):
+    for instances, actions in zip(all_instances_batched, all_actions_batched):
         results = jl.Parallel(n_jobs=n_jobs, verbose=100)(
             jl.delayed(solve_a_problem)(
                 instance,
