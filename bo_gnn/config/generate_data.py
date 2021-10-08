@@ -159,7 +159,7 @@ def solve_instances_and_periodically_write_to_file(
             for instance, action in zip(instances, actions)
         )
 
-        _write_results_to_csv(output_file, results, fmt_fcts=[csv_fmt_fct])
+        _write_results_to_csv(output_file, results)
 
 
 def solve_a_problem(
@@ -200,12 +200,8 @@ def solve_a_problem(
 
 
 def _write_results_to_csv(
-    output_file, results: List[Dict], fmt_fcts: List[Callable] = []
+    output_file, results: List[Dict]
 ):
-    for f in fmt_fcts:
-        for res in results:
-            res = f(res)
-
     # We use a lockfile so we can write to the file from multiple processes.
     lock = FileLock(f"{output_file}.lck")
     with lock:
@@ -241,20 +237,17 @@ class TestSolveProblem(unittest.TestCase):
 
         self.paramfile = "parameters.pcs"
 
-        self.time_limit = 5
+        self.time_limit = 2
         self.keywords = [
             "instance_file",
             "time_limit",
             "time_limit_primal_dual_integral",
-            "status",
-            "solvingtime",
-            "nnodes",
         ]
 
     def test_parallel_solve(self):
         retval = jl.Parallel(n_jobs=2)(
             jl.delayed(solve_a_problem)(
-                s, config={}, time_limit=self.time_limit, dry_run=True
+                s, parameters={"config_id": 0, "random_seed": 0}, time_limit=self.time_limit, dry_run=False
             )
             for s in random.sample(self.instance_files, 2)
         )
@@ -268,12 +261,11 @@ class TestSolveProblem(unittest.TestCase):
             self.assertIsInstance(d["instance_file"], str)
 
     def test_parallel_solve_with_sampled_configs(self):
-        N = 2
-        actions = sampleActions(self.paramfile, n_samples=N)
+        actions = [{"config_id": 0, "random_seed": 0}, {"config_id": 1, "random_seed": 1}]
 
         retval = jl.Parallel(n_jobs=2)(
             jl.delayed(solve_a_problem)(
-                s, config=a, time_limit=self.time_limit, dry_run=True
+                s, parameters=a, time_limit=self.time_limit, dry_run=False
             )
             for s, a in zip(random.sample(self.instance_files, 2), actions)
         )
@@ -287,9 +279,8 @@ class TestSolveProblem(unittest.TestCase):
             self.assertIsInstance(d["instance_file"], str)
 
     def test_solve_failure_with_invalid_action(self):
-        actions = sampleActions(self.paramfile, n_samples=1)
-        actions[0]["foo"] = 1.0  # invalid parameter
-        with self.assertRaises(ec.core.scip.Exception):
+        actions = [{"config_id": 0}]# invalid parameter
+        with self.assertRaises(KeyError):
             solve_a_problem(
                 self.instance_files[0],
                 actions[0],
@@ -301,48 +292,31 @@ class TestSolveProblem(unittest.TestCase):
         # Note that the context manager already creates the file, i.e. no header will be written
         with tempfile.NamedTemporaryFile() as tmpfile:
             solve_instances_and_periodically_write_to_file(
-                n_instances=2,
+                path_to_instances="../../instances/",
+                output_file=tmpfile.name,
                 n_jobs=1,
                 folder="train",
-                output_file=tmpfile.name,
+                start_instance_number=0,
+                end_instance_number=2,
                 time_limit=5,
                 dry_run=True,
             )
             loc = int(subprocess.check_output(["wc", "-l", tmpfile.name]).split()[0])
-            self.assertEqual(loc, 3, msg=subprocess.check_output(["cat", tmpfile.name]))
+            self.assertEqual(loc, 129, msg=subprocess.check_output(["cat", tmpfile.name]))
 
         with tempfile.NamedTemporaryFile() as tmpfile:
             solve_instances_and_periodically_write_to_file(
-                n_instances=1,
-                n_jobs=2,
-                folder="train",
+                path_to_instances="../../instances/",
                 output_file=tmpfile.name,
+                n_jobs=1,
+                folder="train",
+                start_instance_number=0,
+                end_instance_number=2,
                 time_limit=5,
                 dry_run=True,
             )
             loc = int(subprocess.check_output(["wc", "-l", tmpfile.name]).split()[0])
-            self.assertEqual(loc, 2)
-
-    def test_categorical_to_numerical(self):
-        import pandas as pd
-
-        with tempfile.NamedTemporaryFile(mode="w") as tmpfile:
-            solve_instances_and_periodically_write_to_file(
-                n_instances=2,
-                n_jobs=2,
-                folder="train",
-                output_file=tmpfile.name,
-                time_limit=5,
-                dry_run=True,
-            )
-
-            df = pd.read_csv(
-                tmpfile.name
-            )  # we use pandas to avoid type parsing problems
-            self.assertIn("branching/scorefunc", df.columns)
-            self.assertIn("branching/scorefunc_cat", df.columns)
-            self.assertEqual(df["branching/scorefunc"].dtype, int)
-            self.assertEqual(df["branching/scorefunc_cat"].dtype, object)  # aka string
+            self.assertEqual(loc, 129)
 
 
 class TestUtilityFunctions(unittest.TestCase):
