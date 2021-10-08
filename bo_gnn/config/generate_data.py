@@ -1,6 +1,7 @@
 import random
 import time
 import sys
+import pyscipopt as pyopt
 import joblib as jl
 import unittest
 import csv
@@ -8,6 +9,7 @@ import os
 import argparse
 import tempfile
 import subprocess
+import itertools
 
 from filelock import FileLock
 import ecole
@@ -30,10 +32,17 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "-n",
-        "--num_instances",
-        help="Number of instances to solve (consider putting multiple of cpus)",
-        type=int,
+        "--task_name",
+        help="Task name",
+        choices=("1_item_placement", "2_load_balancing", "3_anonymous"),
     )
+    parser.add_argument(
+        "-p",
+        "--path_to_instances",
+        help="Give path to instances ",
+        default="../../instances/"
+    )
+
     parser.add_argument(
         "-j",
         "--num_jobs",
@@ -58,100 +67,145 @@ def parse_args():
         "-t",
         "--time_limit",
         help="Solver time limit (in seconds).",
-        default=5 * 60,
+        default=900,
         type=int,
     )
+    parser.add_argument(
+        "-s",
+        "--start_instance_number",
+        help="Run from what starting instance number",
+        required=True,
+        type=int,
+    )
+    parser.add_argument(
+        "-e",
+        "--end_instance_number",
+        help="Run up to end instance number",
+        required=True,
+        type=int,
+    )
+    parser.add_argument(
+        "-r",
+        "--number_of_random_seeds",
+        help="How many random seeds to use",
+        default=1,
+        type=int,
+    )
+
     parser.add_argument("-d", "--dry_run", help="Dry run.", action="store_true")
 
     args = parser.parse_args()
     return args
 
+number_of_configs = 353
 
 def main():
     args = parse_args()
-    solve_random_instances_and_periodically_write_to_file(
-        n_instances=args.num_instances,
+    solve_instances_and_periodically_write_to_file(
+        path_to_instances=args.path_to_instances,
         n_jobs=args.num_jobs,
         folder=args.folder,
         output_file=args.output_file,
         time_limit=args.time_limit,
         dry_run=args.dry_run,
+        start_instance_number=args.start_instance_number,
+        end_instance_number=args.end_instance_number,
+        task_name=args.task_name,
+        number_of_random_seeds=args.number_of_random_seeds
     )
 
 
-def solve_random_instances_and_periodically_write_to_file(
-    n_instances, output_file, folder, n_jobs=-1, time_limit=5 * 60, dry_run=True
+def solve_instances_and_periodically_write_to_file(
+    path_to_instances: str,
+    output_file,
+    folder,
+    start_instance_number: int,
+    end_instance_number: int,
+    n_jobs=-1,
+    time_limit=900,
+    dry_run=True,
+    task_name: str = "1_item_placement",
+    number_of_random_seeds: int = 1,
 ):
-    instance_path = pathlib.Path(f"../../instances/1_item_placement/{folder}")
-    instance_files = list(map(str, instance_path.glob("*.mps.gz")))
+    instance_path = pathlib.Path(f"{path_to_instances}/{task_name}/{folder}")
+    instance_paths = [os.path.join(instance_path, f"{task_name[2:]}_{instance_id}.mps.gz") for instance_id in range(start_instance_number, end_instance_number)]
 
-    paramfile = "parameters.pcs"
-    csv_fmt_fct = _makeMapCategoricalsToNumericalLevels(paramfile)
 
-    instances = random.choices(instance_files, k=n_instances)
-    actions = sampleActions(paramfile, n_samples=n_instances)
+    number_of_instances = end_instance_number - start_instance_number
+
+    all_instances = []
+    all_actions = []
+    for instance in instance_paths:
+        all_instances += [instance] * number_of_configs*number_of_random_seeds
+        all_actions += [{'config_id': config_id, 'random_seed': random_seed} for config_id, random_seed in itertools.product(range(number_of_configs), range(number_of_random_seeds))]
+
+    assert len(all_instances) == len(all_actions)
 
     # Batch problems so that we can write to file after each batch.
     # This is useful when we run a very large number of instances which might fail
     # late into the problem solving (e.g. running out of RAM).
-    instance_batches = _to_batches(instances, n_instances=n_instances, n_jobs=n_jobs)
-    action_batches = _to_batches(actions, n_instances=n_instances, n_jobs=n_jobs)
+    all_instances_batched = _to_batches(all_instances, n_instances=number_of_instances, n_jobs=n_jobs)
+    all_actions_batched = _to_batches(all_actions, n_instances=number_of_instances, n_jobs=n_jobs)
 
-    for instance_batch, action_batch in zip(instance_batches, action_batches):
+
+    for instances, actions in zip(all_instances_batched, all_actions_batched):
         results = jl.Parallel(n_jobs=n_jobs, verbose=100)(
             jl.delayed(solve_a_problem)(
                 instance,
-                config=action,
+                parameters=action,
                 time_limit=time_limit if not dry_run else 5,
                 dry_run=dry_run,
             )
-            for instance, action in zip(instance_batch, action_batch)
+            for instance, action in zip(instances, actions)
         )
 
-        _write_results_to_csv(output_file, results, fmt_fcts=[csv_fmt_fct])
+        _write_results_to_csv(output_file, results)
 
 
 def solve_a_problem(
-    instance_path, config: Dict = {}, time_limit: int = 20, dry_run: bool = False
+    instance_path: str, parameters: Dict[str,int], time_limit: int = 900, dry_run: bool = False,
 ):
-    integral_function = TimeLimitPrimalDualIntegral()
     with open(instance_path.replace(".mps.gz", ".json")) as f:
         instance_info = json.load(f)
 
-    integral_function.set_parameters(
-        initial_primal_bound=instance_info["primal_bound"],
-        initial_dual_bound=instance_info["dual_bound"],
-        objective_offset=0,
-    )
+    config_id = parameters["config_id"]
 
-    env = Environment(
-        time_limit=time_limit,
-        observation_function=ec.observation.MilpBipartite(),
-        reward_function=integral_function,
-        scip_params={"limits/memory": 19 * 1024 if not dry_run else 2 * 1024},
-    )
-    obs, _, _, _, _ = env.reset(instance_path)
-    _, _, reward, done, info = env.step(config)
-    info.update(config)
-    info.update(
-        {
-            "instance_file": pathlib.PosixPath(instance_path).name,
-            "time_limit": time_limit,
-            "initial_primal_bound": instance_info["primal_bound"],
-            "initial_dual_bound": instance_info["dual_bound"],
-            "time_limit_primal_dual_integral": reward,
-        }
-    )
+    model = pyopt.Model()
+    model.readProblem(instance_path)
+    model.readParams(f"meta_configs/config-{config_id}.set")
+    model.setParam("limits/time", time_limit)
+    model.setParam("randomization/randomseedshift", parameters["random_seed"])
+
+    info = {}
+
+    assert os.path.isfile("meta_configs/config_id_to_parameters.json")
+
+    with open("meta_configs/config_id_to_parameters.json", "r") as file:
+        config_ids_to_parameters = json.load(file)
+
+
+    if not dry_run:
+        model.optimize()
+
+        info.update(
+            {
+                "presolve_config_encoding": config_ids_to_parameters[str(config_id)][0],
+                "heuristic_config_encoding": config_ids_to_parameters[str(config_id)][1],
+                "separating_config_encoding": config_ids_to_parameters[str(config_id)][2],
+                "emphasis_config_encoding": config_ids_to_parameters[str(config_id)][3],
+                "instance_file": pathlib.PosixPath(instance_path).name,
+                "time_limit": time_limit,
+                "initial_primal_bound": instance_info["primal_bound"],
+                "initial_dual_bound": instance_info["dual_bound"],
+                "time_limit_primal_dual_integral": model.getPrimalDualIntegral(),
+            }
+        )
     return info
 
 
 def _write_results_to_csv(
-    output_file, results: List[Dict], fmt_fcts: List[Callable] = []
+    output_file, results: List[Dict]
 ):
-    for f in fmt_fcts:
-        for res in results:
-            res = f(res)
-
     # We use a lockfile so we can write to the file from multiple processes.
     lock = FileLock(f"{output_file}.lck")
     with lock:
@@ -162,20 +216,6 @@ def _write_results_to_csv(
                 writer.writeheader()
             for r in results:
                 writer.writerow(r)
-
-
-def _makeMapCategoricalsToNumericalLevels(paramfile):
-    params = getParamsFromFile(paramfile)
-
-    def mapCategoricalsToNumericalLevels(results: Dict):
-        for p in filter(lambda p: isinstance(p, CS.CategoricalHyperparameter), params):
-            if p.name in results and isinstance(results[p.name], str):
-                results[f"{p.name}_cat"] = results[p.name]
-                results[p.name] = p.choices.index(results[p.name])
-        return results
-
-    return mapCategoricalsToNumericalLevels
-
 
 def _to_batches(full_list, n_instances, n_jobs):
     if n_instances > jl.effective_n_jobs(n_jobs=n_jobs):
@@ -201,20 +241,17 @@ class TestSolveProblem(unittest.TestCase):
 
         self.paramfile = "parameters.pcs"
 
-        self.time_limit = 5
+        self.time_limit = 2
         self.keywords = [
             "instance_file",
             "time_limit",
             "time_limit_primal_dual_integral",
-            "status",
-            "solvingtime",
-            "nnodes",
         ]
 
     def test_parallel_solve(self):
         retval = jl.Parallel(n_jobs=2)(
             jl.delayed(solve_a_problem)(
-                s, config={}, time_limit=self.time_limit, dry_run=True
+                s, parameters={"config_id": 0, "random_seed": 0}, time_limit=self.time_limit, dry_run=False
             )
             for s in random.sample(self.instance_files, 2)
         )
@@ -228,12 +265,11 @@ class TestSolveProblem(unittest.TestCase):
             self.assertIsInstance(d["instance_file"], str)
 
     def test_parallel_solve_with_sampled_configs(self):
-        N = 2
-        actions = sampleActions(self.paramfile, n_samples=N)
+        actions = [{"config_id": 0, "random_seed": 0}, {"config_id": 1, "random_seed": 1}]
 
         retval = jl.Parallel(n_jobs=2)(
             jl.delayed(solve_a_problem)(
-                s, config=a, time_limit=self.time_limit, dry_run=True
+                s, parameters=a, time_limit=self.time_limit, dry_run=False
             )
             for s, a in zip(random.sample(self.instance_files, 2), actions)
         )
@@ -247,9 +283,8 @@ class TestSolveProblem(unittest.TestCase):
             self.assertIsInstance(d["instance_file"], str)
 
     def test_solve_failure_with_invalid_action(self):
-        actions = sampleActions(self.paramfile, n_samples=1)
-        actions[0]["foo"] = 1.0  # invalid parameter
-        with self.assertRaises(ec.core.scip.Exception):
+        actions = [{"config_id": 0}]# invalid parameter
+        with self.assertRaises(KeyError):
             solve_a_problem(
                 self.instance_files[0],
                 actions[0],
@@ -260,61 +295,34 @@ class TestSolveProblem(unittest.TestCase):
     def test_solve_random_instances_and_periodically_write_to_file(self):
         # Note that the context manager already creates the file, i.e. no header will be written
         with tempfile.NamedTemporaryFile() as tmpfile:
-            solve_random_instances_and_periodically_write_to_file(
-                n_instances=2,
+            solve_instances_and_periodically_write_to_file(
+                path_to_instances="../../instances/",
+                output_file=tmpfile.name,
                 n_jobs=1,
                 folder="train",
-                output_file=tmpfile.name,
+                start_instance_number=0,
+                end_instance_number=2,
                 time_limit=5,
                 dry_run=True,
             )
             loc = int(subprocess.check_output(["wc", "-l", tmpfile.name]).split()[0])
-            self.assertEqual(loc, 3, msg=subprocess.check_output(["cat", tmpfile.name]))
+            self.assertEqual(loc, 129, msg=subprocess.check_output(["cat", tmpfile.name]))
 
         with tempfile.NamedTemporaryFile() as tmpfile:
-            solve_random_instances_and_periodically_write_to_file(
-                n_instances=1,
-                n_jobs=2,
-                folder="train",
+            solve_instances_and_periodically_write_to_file(
+                path_to_instances="../../instances/",
                 output_file=tmpfile.name,
+                n_jobs=1,
+                folder="train",
+                start_instance_number=0,
+                end_instance_number=2,
                 time_limit=5,
                 dry_run=True,
             )
             loc = int(subprocess.check_output(["wc", "-l", tmpfile.name]).split()[0])
-            self.assertEqual(loc, 2)
-
-    def test_categorical_to_numerical(self):
-        import pandas as pd
-
-        with tempfile.NamedTemporaryFile(mode="w") as tmpfile:
-            solve_random_instances_and_periodically_write_to_file(
-                n_instances=2,
-                n_jobs=2,
-                folder="train",
-                output_file=tmpfile.name,
-                time_limit=5,
-                dry_run=True,
-            )
-
-            df = pd.read_csv(
-                tmpfile.name
-            )  # we use pandas to avoid type parsing problems
-            self.assertIn("branching/scorefunc", df.columns)
-            self.assertIn("branching/scorefunc_cat", df.columns)
-            self.assertEqual(df["branching/scorefunc"].dtype, int)
-            self.assertEqual(df["branching/scorefunc_cat"].dtype, object)  # aka string
+            self.assertEqual(loc, 129)
 
 
 class TestUtilityFunctions(unittest.TestCase):
     def setUp(self):
         self.paramfile = "parameters.pcs"
-
-    def test_categorical_to_numerical_formatter(self):
-        d = {"branching/scorefunc": "q"}
-        fmt_fnc = _makeMapCategoricalsToNumericalLevels(self.paramfile)
-        d = fmt_fnc(d)
-
-        self.assertIn("branching/scorefunc", d)
-        self.assertIn("branching/scorefunc_cat", d)
-        self.assertIsInstance(d["branching/scorefunc"], int, msg=d)
-        self.assertIsInstance(d["branching/scorefunc_cat"], str, msg=d)

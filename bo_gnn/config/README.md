@@ -17,3 +17,14 @@ Alternatively you can also run this locally, although it's still easier to insta
 # Getting the data
 The necessary data files for the first problem are shared on slack. The pickle files for the first 101 instances is 1.5GB, so I can upload that later to google drive or something.
 The pickle files for all the instances fill be around 30GB.
+
+# Run instances with hyperparameters 
+First of all you need to create the configs: 
+```
+python scripts/create_meta_configs.py
+```
+
+Then you can create data with 
+```
+python generate_data.py -h
+```
