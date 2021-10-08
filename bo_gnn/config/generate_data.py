@@ -88,7 +88,7 @@ def parse_args():
         "-r",
         "--number_of_random_seeds",
         help="How many random seeds to use",
-        required=True,
+        default=1,
         type=int,
     )
 
@@ -97,6 +97,7 @@ def parse_args():
     args = parser.parse_args()
     return args
 
+number_of_configs = 353
 
 def main():
     args = parse_args()
@@ -135,8 +136,8 @@ def solve_instances_and_periodically_write_to_file(
     all_instances = []
     all_actions = []
     for instance in instance_paths:
-        all_instances += [instance] * 64*number_of_random_seeds
-        all_actions += [{'config_id': config_id, 'random_seed': random_seed} for config_id, random_seed in itertools.product(range(64), range(number_of_random_seeds))]
+        all_instances += [instance] * number_of_configs*number_of_random_seeds
+        all_actions += [{'config_id': config_id, 'random_seed': random_seed} for config_id, random_seed in itertools.product(range(number_of_configs), range(number_of_random_seeds))]
 
     assert len(all_instances) == len(all_actions)
 
@@ -177,17 +178,21 @@ def solve_a_problem(
 
     info = {}
 
+    assert os.path.isfile("meta_configs/config_id_to_parameters.json")
+
+    with open("meta_configs/config_id_to_parameters.json", "r") as file:
+        config_ids_to_parameters = json.load(file)
+
+
     if not dry_run:
         model.optimize()
-        config_id_to_enumeration = {
-            i: setting for i, setting
-            in enumerate(itertools.product(range(4), repeat=3))
-        }
+
         info.update(
             {
-                "presolve_config_encoding": config_id_to_enumeration[config_id][0],
-                "heuristic_config_encoding":config_id_to_enumeration[config_id][1],
-                "separating_config_encoding":config_id_to_enumeration[config_id][2],
+                "presolve_config_encoding": config_ids_to_parameters[str(config_id)][0],
+                "heuristic_config_encoding": config_ids_to_parameters[str(config_id)][1],
+                "separating_config_encoding": config_ids_to_parameters[str(config_id)][2],
+                "emphasis_config_encoding": config_ids_to_parameters[str(config_id)][3],
                 "instance_file": pathlib.PosixPath(instance_path).name,
                 "time_limit": time_limit,
                 "initial_primal_bound": instance_info["primal_bound"],
