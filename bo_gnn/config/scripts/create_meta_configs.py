@@ -39,12 +39,12 @@ EMPHASIS_SETTINGS = OrderedDict({
 
 
 def main():
-    os.makedirs('../meta_configs', exist_ok=True)
+    os.makedirs('meta_configs', exist_ok=True)
     config_id_to_parameter_setting = {}
     create_heuristic_presolve_separating_configs(config_id_to_parameter_setting=config_id_to_parameter_setting)
     create_emphasis_configs(config_id_to_parameter_setting=config_id_to_parameter_setting)
 
-    with open('../meta_configs/config_id_to_parameters.json', 'w') as fp:
+    with open('meta_configs/config_id_to_parameters.json', 'w') as fp:
         json.dump(config_id_to_parameter_setting, fp)
 
 def create_heuristic_presolve_separating_configs(config_id_to_parameter_setting):
@@ -253,7 +253,7 @@ def set_parameters(index, presolve_parameter=None, heuristic_parameter=None, sep
         model.setSeparating(separating_paramter)
 
 
-    model.writeParams(filename=f'../meta_configs/config-{index}.set',
+    model.writeParams(filename=f'meta_configs/config-{index}.set',
                       comments=False,
                       onlychanged=True)
 

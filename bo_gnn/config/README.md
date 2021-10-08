@@ -21,7 +21,7 @@ The pickle files for all the instances fill be around 30GB.
 # Run instances with hyperparameters 
 First of all you need to create the configs: 
 ```
-python scripts/create_meta_configs.py --nodry
+python scripts/create_meta_configs.py
 ```
 
 Then you can create data with 
