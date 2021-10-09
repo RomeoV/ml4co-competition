@@ -31,7 +31,7 @@ class MilpGNNTrainable(pl.LightningModule):
         batch_size,
         git_hash,
         problem: Problem,
-        initial_lr=5e-4,
+        initial_lr=5e-3,
         scale_labels=True,
         n_gnn_layers=1,
         gnn_hidden_layers=8,
