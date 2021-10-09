@@ -28,7 +28,7 @@ class ConfigPerformanceRegressor(torch.nn.Module):
         if single_instance:
             graph_embedding = graph_embedding.repeat((config_embedding.shape[0], 1))
 
-        x = torch.cat([graph_embedding, config_embedding], dim=-1)
+        x = torch.cat([graph_embedding, 0 * config_embedding], dim=-1)
         regression_pred = self.regression_head(x)
         mu = regression_pred[:, 0:1]
         logvar = regression_pred[:, 1:2]  # trick to make sure std is positive

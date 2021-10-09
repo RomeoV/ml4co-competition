@@ -39,9 +39,11 @@ class MilpDataset(torch.utils.data.Dataset):
         problem: Problem,
         instances_dir=None,
         dry=False,
+        only_default_config=False,
     ):
         self.problem = problem
         self.csv_data_full = pd.read_csv(csv_file)
+
         if dry:
             instances = self.csv_data_full.instance_file.unique()
             chosen_instances = np.random.choice(
@@ -50,6 +52,15 @@ class MilpDataset(torch.utils.data.Dataset):
             self.csv_data_full = self.csv_data_full[
                 self.csv_data_full.instance_file.isin(chosen_instances)
             ].reset_index(drop=True)
+
+        if only_default_config:
+            df = self.csv_data_full
+            df = df[
+                (df.presolve_config_encoding == 1)
+                & (df.heuristic_config_encoding == 1)
+                & (df.separating_config_encoding == 1)
+            ].reset_index(drop=True)
+            self.csv_data_full = df
 
         if instances_dir:
             self.instance_path = pathlib.Path(instances_dir)
@@ -94,6 +105,8 @@ class MilpDataset(torch.utils.data.Dataset):
             raise "Unsupported data format"
 
         self.csv_data = self.csv_data_full[self.cols]
+        # breakpoint()
+        # print("a")
 
     def __len__(self):
         return len(self.csv_data)

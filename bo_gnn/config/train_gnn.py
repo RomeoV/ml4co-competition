@@ -240,17 +240,17 @@ def main():
         max_epochs=1000,
         gpus=1 if torch.cuda.is_available() else 0,
         callbacks=[
-            EvaluatePredictedParametersCallback(),
+            # EvaluatePredictedParametersCallback(),
             pytorch_lightning.callbacks.LearningRateMonitor(logging_interval="epoch"),
         ],
     )
     model = MilpGNNTrainable(
         config_dim=6,
         optimizer="Adam",
-        batch_size=8,
-        n_gnn_layers=1,
+        batch_size=128,
+        n_gnn_layers=4,
         gnn_hidden_layers=8,
-        ensemble_size=3,
+        ensemble_size=1,
         git_hash=_get_current_git_hash(),
         problem=problem,
     )
@@ -261,9 +261,10 @@ def main():
             data_format=DataFormat.MAX,
             problem=problem,
             dry=(not torch.cuda.is_available()),
+            only_default_config=True,
         ),
         shuffle=True,
-        batch_size=128,
+        batch_size=8,
         drop_last=True,
         num_workers=3,
     )
@@ -274,6 +275,7 @@ def main():
             data_format=DataFormat.MAX,
             problem=problem,
             dry=(not torch.cuda.is_available()),
+            only_default_config=True,
         ),
         shuffle=False,
         batch_size=128,
