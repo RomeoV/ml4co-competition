@@ -265,7 +265,7 @@ def main():
         ),
         shuffle=True,
         batch_size=128,
-        drop_last=True,
+        drop_last=False,
         num_workers=3,
     )
     data_valid = DataLoader(
@@ -279,7 +279,7 @@ def main():
         ),
         shuffle=False,
         batch_size=128,
-        drop_last=True,
+        drop_last=False,
         num_workers=3,
     )
     # TODO clean this up
