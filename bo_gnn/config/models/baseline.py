@@ -39,7 +39,7 @@ class ConfigPerformanceRegressor(torch.nn.Module):
 class MilpGNN(torch.nn.Module):
     def __init__(
         self,
-        hidden_dim: Tuple[int, int] = (8, 8),
+        hidden_dim: Tuple[int, int] = (8, 4),
         out_dim=8,
         n_gnn_layers=1,
         use_batch_norm: bool = False,
@@ -62,7 +62,7 @@ class MilpGNN(torch.nn.Module):
                 for i in range(self.n_gnn_layers)
             ]
         )
-        self.pool = tg.nn.global_mean_pool
+        self.pool = tg.nn.global_max_pool
         self.out_layer = torch.nn.Linear(
             in_features=hidden_dim[0], out_features=out_dim
         )  # we use this to make sure we achieve the correct out_dim
@@ -92,10 +92,12 @@ class GNNFwd(torch.nn.Module):
         self.node_layer = self.Conv(
             in_channels=in_dim[::-1],
             out_channels=out_dim[0],
-        )  # concat=True fails. We average the heads instead (also smaller model).
+            aggr="mean",
+        )
         self.cstr_layer = self.Conv(
             in_channels=in_dim,
             out_channels=out_dim[1],
+            aggr="mean",
         )
         self.batch_norm = batch_norm
         if self.batch_norm:
