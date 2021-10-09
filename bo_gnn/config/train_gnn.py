@@ -249,7 +249,7 @@ def main():
         optimizer="Adam",
         batch_size=128,
         n_gnn_layers=4,
-        gnn_hidden_layers=8,
+        gnn_hidden_layers=32,
         ensemble_size=1,
         git_hash=_get_current_git_hash(),
         problem=problem,
@@ -264,7 +264,7 @@ def main():
             only_default_config=True,
         ),
         shuffle=True,
-        batch_size=8,
+        batch_size=128,
         drop_last=True,
         num_workers=3,
     )
