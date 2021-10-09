@@ -247,8 +247,8 @@ def main():
     model = MilpGNNTrainable(
         config_dim=6,
         optimizer="Adam",
-        batch_size=128,
-        n_gnn_layers=4,
+        batch_size=8,
+        n_gnn_layers=2,
         gnn_hidden_layers=32,
         ensemble_size=1,
         git_hash=_get_current_git_hash(),
@@ -264,7 +264,7 @@ def main():
             only_default_config=True,
         ),
         shuffle=True,
-        batch_size=128,
+        batch_size=8,
         drop_last=False,
         num_workers=3,
     )
@@ -278,7 +278,7 @@ def main():
             only_default_config=True,
         ),
         shuffle=False,
-        batch_size=128,
+        batch_size=8,
         drop_last=False,
         num_workers=3,
     )
