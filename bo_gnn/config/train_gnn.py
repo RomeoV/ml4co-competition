@@ -70,6 +70,10 @@ class MilpGNNTrainable(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         instance_batch, config_batch, label_batch = batch
+        instance_batch.cstr_feats.requires_grad_(True)
+        instance_batch.var_feats.requires_grad_(True)
+        instance_batch.edge_attr.requires_grad_(True)
+        config_batch.requires_grad_(True)
         if self.hparams.scale_labels:
             label_batch = (label_batch - self.mu) / self.sig
         pred = self.forward((instance_batch, config_batch))[0]
