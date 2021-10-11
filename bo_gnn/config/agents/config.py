@@ -60,13 +60,13 @@ class Policy():
         )
 
         config_batch = self._generate_config_data(TIMEOUT, primal_bound, dual_bound)
-        batch_size = config_batch.shape[0]
-        instance_batch = Batch.from_data_list([instance_data for __ in range(batch_size)])
+        instance_batch = Batch.from_data_list([instance_data],)
 
-        predictions, mean_mu, mean_var, epi_var = self.performance_prediction_model((instance_batch, config_batch))
+        predictions, mean_mu, mean_var, epi_var = self.performance_prediction_model((instance_batch, config_batch),
+                                                                                    single_instance=True)
 
-        highest_mean_index = torch.argmax(mean_mu)
-        best_parameters = config_batch[highest_mean_index, :3]
+        lowest_mean_index = torch.argmin(mean_mu)
+        best_parameters = config_batch[lowest_mean_index, :3]
         # TODO: figure out how to set emphasis parameters here, this currently crashes
         scip_params = {
             #"presolving/emphasis": best_parameters[0],
