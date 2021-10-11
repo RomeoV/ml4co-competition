@@ -1,4 +1,5 @@
 import os
+from typing import Dict
 
 import pytorch_lightning as pl
 import torch
@@ -10,6 +11,7 @@ from torch_geometric.data import Batch
 from data_utils.milp_data import MilpBipartiteData
 
 CHECKPOINT_BASE_PATH = "trained_model_checkpoints/"
+PARAMETER_CONFIGURATIONS_PATH = "param_configurations/"
 TIMEOUT = 900
 
 class ObservationFunction(MilpBipartite):
@@ -65,16 +67,8 @@ class Policy():
         predictions, mean_mu, mean_var, epi_var = self.performance_prediction_model((instance_batch, config_batch),
                                                                                     single_instance=True)
 
-        lowest_mean_index = torch.argmin(mean_mu)
-        best_parameters = config_batch[lowest_mean_index, :3]
-        # TODO: figure out how to set emphasis parameters here, this currently crashes
-        scip_params = {
-            #"presolving/emphasis": best_parameters[0],
-            #"heuristic/emphasis": best_parameters[1],
-            #"separating/emphasis": best_parameters[2],
-        }
-
-        return scip_params
+        lowest_mean_index = int(torch.argmin(mean_mu))
+        return self._get_scip_parameter_configuration_by(lowest_mean_index)
 
     def _generate_config_data(self, timeout: float, primal_bound: float, dual_bound: float) -> Tensor:
         presolve_config_options = torch.tensor([0, 1, 2, 3])
@@ -89,3 +83,13 @@ class Policy():
         config_data[:, 4] = primal_bound
         config_data[:, 5] = dual_bound
         return config_data
+
+    def _get_scip_parameter_configuration_by(self, index: int) -> Dict[str, float]:
+        path = PARAMETER_CONFIGURATIONS_PATH + "config-" + str(index) + ".set"
+
+        parameter_configuration = {}
+        with open(path, "r") as parameter_file:
+            for setting in parameter_file.readlines():
+                param_key, param_value = setting.split(" = ")
+                parameter_configuration[param_key] = float(param_value)
+        return parameter_configuration
