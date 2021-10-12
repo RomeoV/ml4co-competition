@@ -61,9 +61,9 @@ def main():
         for _ in range(arguments.number_of_jobs):
             command = "bsub -o /cluster/scratch/{}/lsf/ -W {} -n 32 python3 generate_data.py -n {} -p " \
                       "{} -j {} -f train " \
-                      "-o {}/item_placement_investigation_results.csv " \
+                      "-o {}{}_results.csv " \
                       "-t 900 -s {} -e {} -r 1 \n".format(arguments.user_name, arguments.run_time, arguments.task_name,
-                                                     arguments.dataset_path, arguments.number_of_cores, arguments.dataset_path,
+                                                     arguments.dataset_path, arguments.number_of_cores, arguments.dataset_path, arguments.task_name,
                                                        int(start_instance), int(end_instance))
             file.write(command)
             start_instance = end_instance
