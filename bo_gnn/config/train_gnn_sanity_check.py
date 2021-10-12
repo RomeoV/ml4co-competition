@@ -14,12 +14,14 @@ class SanityCheckGNNModel(torch.nn.Module):
             n_gnn_layers=4,
             hidden_dim=(8, 9),
         )
-        self.lin = torch.nn.Linear(in_features=8 + 9, out_features=1)
+        self.lin_mu = torch.nn.Linear(in_features=8 + 9, out_features=1)
+        self.lin_var = torch.nn.Linear(in_features=8 + 9, out_features=1)
 
     def forward(self, instance_batch):
         graph_embedding = self.milp_gnn(instance_batch)
-        head = self.lin(graph_embedding)
-        return head
+        mu = self.lin_mu(graph_embedding)
+        var = self.lin_var(graph_embedding).exp()
+        return mu, var
 
 
 def main():
@@ -51,21 +53,29 @@ def main():
     opt = torch.optim.RMSprop(model.parameters(), lr=5e-4)
 
     for e in tqdm.trange(N_EPOCHS):
-        losses = []
+        losses_nll = []
+        losses_l1 = []
+        losses_l2 = []
         for b in data_train:
             inst, conf, lbl = b
             inst.var_feats.requires_grad_(True)
             inst.cstr_feats.requires_grad_(True)
             inst.edge_attr.requires_grad_(True)
             inst, lbl = inst.to(device), ((lbl - mu) / sig).to(device)
-            pred = model(inst)
+            pred_mu, pred_var = model(inst)
 
-            loss = torch.nn.functional.mse_loss(pred, lbl)
-            losses += [loss.item()]
+            loss_nll = torch.nn.functional.gaussian_nll_loss(pred_mu, lbl, pred_var)
+            loss_l1 = torch.nn.functional.l1_loss(pred_mu, lbl)
+            loss_l2 = torch.nn.functional.mse_loss(pred_mu, lbl)
+            losses_nll += [loss_nll.item()]
+            losses_l1 += [loss_l1.item()]
+            losses_l2 += [loss_l2.item()]
             opt.zero_grad()
-            loss.backward()
+            loss_nll.backward()
             opt.step()
-        print(f"Loss: {sum(losses)/len(losses)}")
+        print(
+            f"   NLL-Loss: {sum(losses_nll)/len(losses_nll)} - L1-Loss: {sum(losses_l1)/len(losses_l1)} - L2-Loss: {sum(losses_l2)/len(losses_l2)}"
+        )
 
 
 if __name__ == "__main__":
