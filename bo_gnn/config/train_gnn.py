@@ -259,6 +259,7 @@ def main():
         batch_size=8,
         drop_last=False,
         num_workers=3,
+        pin_memory=(torch.cuda.is_available()),
     )
     data_valid = DataLoader(
         MilpDataset(
@@ -273,6 +274,7 @@ def main():
         batch_size=8,
         drop_last=False,
         num_workers=3,
+        pin_memory=(torch.cuda.is_available()),
     )
     # TODO clean this up
     mu, sig = (
