@@ -109,8 +109,8 @@ class GNNFwd(torch.nn.Module):
         )
         self.batch_norm = batch_norm
         if self.batch_norm:
-            self.node_batch_norm = tg.nn.BatchNorm(in_channels=out_dim[0])
-            self.cstr_batch_norm = tg.nn.BatchNorm(in_channels=out_dim[1])
+            self.node_batch_norm = tg.nn.BatchNorm(in_channels=in_dim[0])
+            self.cstr_batch_norm = tg.nn.BatchNorm(in_channels=in_dim[1])
 
         self.residual = residual
         if self.residual:
