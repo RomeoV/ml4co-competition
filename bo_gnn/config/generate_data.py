@@ -178,7 +178,7 @@ def solve_a_problem(
 ):
     with open(instance_path.replace(".mps.gz", ".json")) as f:
         instance_info = json.load(f)
-
+    print("Running instance {}".format(instance_path))
     config_id = parameters["config_id"]
 
     model = pyopt.Model()
@@ -205,6 +205,7 @@ def solve_a_problem(
                 "heuristic_config_encoding": config_ids_to_parameters[str(config_id)][1],
                 "separating_config_encoding": config_ids_to_parameters[str(config_id)][2],
                 "emphasis_config_encoding": config_ids_to_parameters[str(config_id)][3],
+                "config_id": config_id,
                 "instance_file": pathlib.PosixPath(instance_path).name,
                 "time_limit": time_limit,
                 "initial_primal_bound": instance_info["primal_bound"],
