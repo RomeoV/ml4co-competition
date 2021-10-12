@@ -196,6 +196,7 @@ def solve_a_problem(
 
 
     if not dry_run:
+        model.hideOutput()
         model.optimize()
 
         info.update(
