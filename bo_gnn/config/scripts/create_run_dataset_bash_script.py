@@ -59,7 +59,7 @@ def main():
     end_instance = start_instance + range_per_job
     with open("scripts/run_dataset_generation_on_cluster.sh", "w+") as file:
         for _ in range(arguments.number_of_jobs):
-            command = "bsub -o /cluster/scratch/{}/lsf/ -W {} -n 32 python3 generate_data.py -n {} -p " \
+            command = "bsub -o /cluster/scratch/{}/lsf/ -W {} -R 'rusage[mem=10000]' -n 32 python3 generate_data.py -n {} -p " \
                       "{} -j {} -f train " \
                       "-o {}{}_results.csv " \
                       "-t 900 -s {} -e {} -r 1 \n".format(arguments.user_name, arguments.run_time, arguments.task_name,
