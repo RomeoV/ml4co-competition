@@ -11,14 +11,15 @@ from data_utils.dataset import MilpDataset
 
 
 class ConfigPerformanceRegressor(torch.nn.Module):
-    def __init__(self, config_dim, n_gnn_layers=1, gnn_hidden_layers=8):
+    def __init__(self, config_dim, n_gnn_layers=1, gnn_hidden_dim=8):
         super(ConfigPerformanceRegressor, self).__init__()
 
         self.milp_gnn = MilpGNN(
-            n_gnn_layers=n_gnn_layers, hidden_dim=(gnn_hidden_layers, gnn_hidden_layers)
+            n_gnn_layers=n_gnn_layers,
+            hidden_dim=(gnn_hidden_dim, gnn_hidden_dim + 1),
         )
         self.config_emb = ConfigEmbedding(in_dim=config_dim)
-        self.regression_head = RegressionHead()
+        self.regression_head = RegressionHead(in_dim=gnn_hidden_dim + 8)
 
     def forward(self, instance_config_tuple, single_instance=False):
         instance_batch, config_batch = instance_config_tuple
@@ -53,13 +54,21 @@ class MilpGNN(torch.nn.Module):
         self.gnns = torch.nn.ModuleList(
             [
                 GNNFwd(
+                    in_dim=(9, 1),
+                    out_dim=hidden_dim,
+                    residual=False,
+                    batch_norm=False,
+                )
+            ]
+            + [
+                GNNFwd(
                     in_dim=hidden_dim,
                     out_dim=hidden_dim,
                     residual=False,
                     batch_norm=use_batch_norm
-                    and (i < self.n_gnn_layers - 1),  # Not for last layer
+                    and (i < self.n_gnn_layers - 2),  # Not for last layer
                 )
-                for i in range(self.n_gnn_layers)
+                for i in range(self.n_gnn_layers - 1)
             ]
         )
         self.pool = tg.nn.global_max_pool
@@ -70,11 +79,11 @@ class MilpGNN(torch.nn.Module):
         self.loss = F.mse_loss
 
     def forward(self, x):
-        x = self.input_embedding(x)
+        # x = self.input_embedding(x)
         for l in self.gnns:
             x = l(x)
         x = self.pool(x.var_feats, x.batch_el)
-        x = self.out_layer(x).relu_()
+        # x = self.out_layer(x).relu_()
         return x
 
 

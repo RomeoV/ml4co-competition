@@ -12,7 +12,6 @@ class MilpBipartiteData(Data):
         cstr_feats,
         edge_indices,
         edge_values,
-        label=None,
         batch_el=None,
     ):
         super(MilpBipartiteData, self).__init__()

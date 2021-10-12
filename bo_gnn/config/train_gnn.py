@@ -34,7 +34,7 @@ class MilpGNNTrainable(pl.LightningModule):
         initial_lr=5e-3,
         scale_labels=True,
         n_gnn_layers=1,
-        gnn_hidden_layers=8,
+        gnn_hidden_dim=8,
         ensemble_size=3,
     ):
         super().__init__()
@@ -45,7 +45,7 @@ class MilpGNNTrainable(pl.LightningModule):
                 ConfigPerformanceRegressor(
                     config_dim=config_dim,
                     n_gnn_layers=n_gnn_layers,
-                    gnn_hidden_layers=gnn_hidden_layers,
+                    gnn_hidden_dim=gnn_hidden_dim,
                 )
                 for i in range(ensemble_size)
             ]
@@ -252,8 +252,8 @@ def main():
         config_dim=6,
         optimizer="Adam",
         batch_size=8,
-        n_gnn_layers=4,
-        gnn_hidden_layers=32,
+        n_gnn_layers=1,
+        gnn_hidden_dim=32,
         ensemble_size=1,
         git_hash=_get_current_git_hash(),
         problem=problem,
