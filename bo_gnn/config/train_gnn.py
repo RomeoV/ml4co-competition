@@ -239,7 +239,7 @@ def main():
         max_epochs=1000,
         gpus=1 if torch.cuda.is_available() else 0,
         callbacks=[
-            # EvaluatePredictedParametersCallback(),
+            EvaluatePredictedParametersCallback(),
             pytorch_lightning.callbacks.LearningRateMonitor(logging_interval="epoch"),
         ],
     )
