@@ -185,6 +185,7 @@ def solve_a_problem(
     model.readProblem(instance_path)
     model.readParams(f"meta_configs/config-{config_id}.set")
     model.setParam("limits/time", time_limit)
+    model.setParam("limits/memory", 12*1024)
     model.setParam("randomization/randomseedshift", parameters["random_seed"])
 
     info = {}
