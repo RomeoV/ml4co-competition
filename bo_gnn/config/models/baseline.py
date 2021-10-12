@@ -56,15 +56,13 @@ class MilpGNN(torch.nn.Module):
                 GNNFwd(
                     in_dim=(9, 1),
                     out_dim=hidden_dim,
-                    residual=False,
-                    batch_norm=False,
+                    batch_norm=True,
                 )
             ]
             + [
                 GNNFwd(
                     in_dim=hidden_dim,
                     out_dim=hidden_dim,
-                    residual=False,
                     batch_norm=True,
                 )
                 for i in range(self.n_gnn_layers - 1)

@@ -45,7 +45,7 @@ def main():
         data_train.dataset.csv_data_full.time_limit_primal_dual_integral.std(),
     )
 
-    N_EPOCHS = 100
+    N_EPOCHS = 1000
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = model.to(device)
     opt = torch.optim.RMSprop(model.parameters(), lr=5e-4)
