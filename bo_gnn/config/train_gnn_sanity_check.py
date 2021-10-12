@@ -41,6 +41,7 @@ def main():
         batch_size=64,
         drop_last=False,
         num_workers=3,
+        pin_memory=(torch.cuda.is_available()),
     )
     mu, sig = (
         data_train.dataset.csv_data_full.time_limit_primal_dual_integral.mean(),

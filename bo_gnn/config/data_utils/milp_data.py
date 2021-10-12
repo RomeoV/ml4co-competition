@@ -23,6 +23,14 @@ class MilpBipartiteData(Data):
         self.var_batch_el = torch.zeros((self.var_feats.shape[0]), dtype=torch.long)
         self.cstr_batch_el = torch.zeros((self.cstr_feats.shape[0]), dtype=torch.long)
 
+    def pin_memory(self):
+        self.var_feats = self.var_feats.pin_memory()
+        self.cstr_feats = self.cstr_feats.pin_memory()
+        self.edge_attr = self.edge_attr.pin_memory()
+        self.edge_index = self.edge_index.pin_memory()
+        self.var_batch_el = self.var_batch_el.pin_memory()
+        self.cstr_batch_el = self.cstr_batch_el.pin_memory()
+
     def __inc__(self, key, value):
         if key == "edge_index":
             return torch.tensor([[self.cstr_feats.size(0)], [self.var_feats.size(0)]])
