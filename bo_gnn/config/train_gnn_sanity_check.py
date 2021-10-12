@@ -14,7 +14,7 @@ class SanityCheckGNNModel(torch.nn.Module):
             n_gnn_layers=4,
             hidden_dim=(8, 9),
         )
-        self.lin = torch.nn.Linear(in_features=8, out_features=1)
+        self.lin = torch.nn.Linear(in_features=8 + 9, out_features=1)
 
     def forward(self, instance_batch):
         graph_embedding = self.milp_gnn(instance_batch)
@@ -36,7 +36,7 @@ def main():
             only_default_config=True,
         ),
         shuffle=True,
-        batch_size=32,
+        batch_size=64,
         drop_last=False,
         num_workers=3,
     )
@@ -48,7 +48,7 @@ def main():
     N_EPOCHS = 100
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = model.to(device)
-    opt = torch.optim.Adam(model.parameters(), lr=1e-3)
+    opt = torch.optim.RMSprop(model.parameters(), lr=5e-4)
 
     for e in tqdm.trange(N_EPOCHS):
         losses = []

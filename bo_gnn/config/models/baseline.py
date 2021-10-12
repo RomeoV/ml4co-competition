@@ -65,13 +65,12 @@ class MilpGNN(torch.nn.Module):
                     in_dim=hidden_dim,
                     out_dim=hidden_dim,
                     residual=False,
-                    batch_norm=use_batch_norm
-                    and (i < self.n_gnn_layers - 2),  # Not for last layer
+                    batch_norm=True,
                 )
                 for i in range(self.n_gnn_layers - 1)
             ]
         )
-        self.pool = tg.nn.global_max_pool
+        self.pool = tg.nn.global_mean_pool
         self.out_layer = torch.nn.Linear(
             in_features=hidden_dim[0], out_features=out_dim
         )  # we use this to make sure we achieve the correct out_dim
@@ -82,7 +81,9 @@ class MilpGNN(torch.nn.Module):
         # x = self.input_embedding(x)
         for l in self.gnns:
             x = l(x)
-        x = self.pool(x.var_feats, x.batch_el)
+        x_var = self.pool(x.var_feats, x.var_batch_el)
+        x_cstr = self.pool(x.cstr_feats, x.cstr_batch_el)
+        x = torch.cat([x_var, x_cstr], axis=-1)
         # x = self.out_layer(x).relu_()
         return x
 
@@ -122,6 +123,11 @@ class GNNFwd(torch.nn.Module):
     def forward(self, data):
         x_node = data.var_feats
         x_cstr = data.cstr_feats
+
+        if self.batch_norm:
+            x_node = self.node_batch_norm(x_node)
+            x_cstr = self.cstr_batch_norm(x_cstr)
+
         edge_attr = data.edge_attr.unsqueeze(-1)
 
         x_node_ = self.node_layer(
@@ -136,10 +142,6 @@ class GNNFwd(torch.nn.Module):
         if self.residual:
             x_node_ = x_node_ + x_node
             x_cstr_ = x_cstr_ + x_cstr
-
-        if self.batch_norm:
-            x_node_ = self.node_batch_norm(x_node_)
-            x_cstr_ = self.cstr_batch_norm(x_cstr_)
 
         x_node_ = F.relu(x_node_)
         x_cstr_ = F.relu(x_cstr_)
