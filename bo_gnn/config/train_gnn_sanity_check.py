@@ -14,14 +14,16 @@ class SanityCheckGNNModel(torch.nn.Module):
             n_gnn_layers=4,
             hidden_dim=(8, 9),
         )
-        self.lin_mu = torch.nn.Linear(in_features=8 + 9, out_features=1)
-        self.lin_var = torch.nn.Linear(in_features=8 + 9, out_features=1)
+        # self.lin_mu = torch.nn.Linear(in_features=8 + 9, out_features=1)
+        # self.lin_var = torch.nn.Linear(in_features=8 + 9, out_features=1)
+        self.lin = torch.nn.Linear(in_features=8 + 9, out_features=2)
 
     def forward(self, instance_batch):
         graph_embedding = self.milp_gnn(instance_batch)
-        mu = self.lin_mu(graph_embedding)
-        var = self.lin_var(graph_embedding).exp()
-        return mu, var
+        preds = self.lin(graph_embedding)
+        mu = preds[:, 0:1]
+        var = preds[:, 1:2].exp()
+        return torch.cat([mu, var], axis=1)
 
 
 def main():
@@ -63,7 +65,9 @@ def main():
             inst.cstr_feats.requires_grad_(True)
             inst.edge_attr.requires_grad_(True)
             inst, lbl = inst.to(device), ((lbl - mu) / sig).to(device)
-            pred_mu, pred_var = model(inst)
+            pred = model(inst)
+            pred_mu = pred[:, 0:1]
+            pred_var = pred[:, 1:2]
 
             loss_nll = torch.nn.functional.gaussian_nll_loss(pred_mu, lbl, pred_var)
             loss_l1 = torch.nn.functional.l1_loss(pred_mu, lbl)
