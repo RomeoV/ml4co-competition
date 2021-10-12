@@ -11,15 +11,15 @@ from data_utils.dataset import MilpDataset
 
 
 class ConfigPerformanceRegressor(torch.nn.Module):
-    def __init__(self, config_dim, n_gnn_layers=1, gnn_hidden_dim=8):
+    def __init__(self, config_dim, n_gnn_layers=4, gnn_hidden_dim=8):
         super(ConfigPerformanceRegressor, self).__init__()
 
         self.milp_gnn = MilpGNN(
             n_gnn_layers=n_gnn_layers,
-            hidden_dim=(gnn_hidden_dim, gnn_hidden_dim + 1),
+            hidden_dim=(gnn_hidden_dim, gnn_hidden_dim),
         )
-        self.config_emb = ConfigEmbedding(in_dim=config_dim)
-        self.regression_head = RegressionHead(in_dim=gnn_hidden_dim + 8)
+        self.config_emb = ConfigEmbedding(in_dim=config_dim, out_dim=8)
+        self.regression_head = RegressionHead(in_dim=2 * gnn_hidden_dim + 8)
 
     def forward(self, instance_config_tuple, single_instance=False):
         instance_batch, config_batch = instance_config_tuple
@@ -29,11 +29,11 @@ class ConfigPerformanceRegressor(torch.nn.Module):
         if single_instance:
             graph_embedding = graph_embedding.repeat((config_embedding.shape[0], 1))
 
-        x = torch.cat([graph_embedding, 0 * config_embedding], dim=-1)
+        x = torch.cat([graph_embedding, config_embedding], dim=-1).relu_()
         regression_pred = self.regression_head(x)
         mu = regression_pred[:, 0:1]
-        logvar = regression_pred[:, 1:2]  # trick to make sure std is positive
-        regression_pred = torch.cat([mu, torch.exp(logvar)], dim=-1)
+        var = regression_pred[:, 1:2].exp()  # trick to make sure std is positive
+        regression_pred = torch.cat([mu, var], dim=-1)
         return regression_pred
 
 
@@ -168,8 +168,10 @@ class InputEmbedding(torch.nn.Module):
 
 
 class ConfigEmbedding(torch.nn.Module):
-    def __init__(self, in_dim, hidden_dim=8, out_dim=8):
+    def __init__(self, in_dim, hidden_dim=None, out_dim=8):
         super(ConfigEmbedding, self).__init__()
+        if not hidden_dim:
+            hidden_dim = 4 * in_dim
 
         self.input_batch_norm = torch.nn.BatchNorm1d(in_dim)
         self.lin1 = torch.nn.Linear(in_features=in_dim, out_features=hidden_dim)
@@ -183,8 +185,10 @@ class ConfigEmbedding(torch.nn.Module):
 
 
 class RegressionHead(torch.nn.Module):
-    def __init__(self, in_dim=2 * 8, hidden_dim=8, out_dim=2):
+    def __init__(self, in_dim=2 * 8, hidden_dim=None, out_dim=2):
         super(RegressionHead, self).__init__()
+        if not hidden_dim:
+            hidden_dim = 4 * in_dim
 
         self.lin1 = torch.nn.Linear(in_features=in_dim, out_features=hidden_dim)
         self.lin2 = torch.nn.Linear(in_features=hidden_dim, out_features=out_dim)

@@ -29,14 +29,14 @@ class MilpGNNTrainable(pl.LightningModule):
         self,
         config_dim,
         optimizer,
+        initial_lr,
         batch_size,
         git_hash,
         problem: Problem,
-        initial_lr=5e-4,
+        n_gnn_layers,
+        gnn_hidden_dim,
+        ensemble_size,
         scale_labels=True,
-        n_gnn_layers=4,
-        gnn_hidden_dim=8,
-        ensemble_size=1,
     ):
         super().__init__()
         self.save_hyperparameters()
@@ -62,13 +62,19 @@ class MilpGNNTrainable(pl.LightningModule):
         instance_batch.var_feats.requires_grad_(True)
         instance_batch.edge_attr.requires_grad_(True)
         config_batch.requires_grad_(True)
+
         if self.hparams.scale_labels:
             label_batch = (label_batch - self.mu) / self.sig
+        label_batch = label_batch.unsqueeze(axis=2)  # (B, 1, 1)
+
         pred = self.forward((instance_batch, config_batch))[0]
-        loss = F.gaussian_nll_loss(pred[:, :, 0], label_batch, pred[:, :, 1])
-        l1_loss = F.l1_loss(pred[:, :, 0], label_batch)
-        l2_loss = F.mse_loss(pred[:, :, 0], label_batch)
-        sigs = pred[:, :, 1].mean(axis=1).sqrt()
+        pred_mu = pred[:, :, 0:1]
+        pred_var = pred[:, :, 1:2]
+
+        loss = F.gaussian_nll_loss(pred_mu, label_batch, pred_var)
+        l1_loss = F.l1_loss(pred_mu, label_batch)
+        l2_loss = F.mse_loss(pred_mu, label_batch)
+        sigs = pred_var.mean(axis=1).sqrt()
         self.log_dict(
             {
                 "train_loss": loss,
@@ -86,7 +92,8 @@ class MilpGNNTrainable(pl.LightningModule):
         instance_batch, config_batch, label_batch = batch
         if self.hparams.scale_labels:
             label_batch = (label_batch - self.mu) / self.sig
-        pred, mean_mu, mean_var, epi_var = self.forward((instance_batch, config_batch))
+
+        _pred, mean_mu, mean_var, epi_var = self.forward((instance_batch, config_batch))
         nll_loss = F.gaussian_nll_loss(mean_mu, label_batch, mean_var)
         l1_loss = F.l1_loss(mean_mu, label_batch)
         l2_loss = F.mse_loss(mean_mu, label_batch)
@@ -239,10 +246,11 @@ def main():
     model = MilpGNNTrainable(
         config_dim=6,
         optimizer="RMSprop",
-        batch_size=8,
-        n_gnn_layers=1,
-        gnn_hidden_dim=32,
-        ensemble_size=1,
+        initial_lr=5e-4,
+        batch_size=64,
+        n_gnn_layers=4,
+        gnn_hidden_dim=8,
+        ensemble_size=3,
         git_hash=_get_current_git_hash(),
         problem=problem,
     )
@@ -256,7 +264,7 @@ def main():
             only_default_config=True,
         ),
         shuffle=True,
-        batch_size=8,
+        batch_size=64,
         drop_last=False,
         num_workers=3,
         pin_memory=(torch.cuda.is_available()),
@@ -271,7 +279,7 @@ def main():
             only_default_config=True,
         ),
         shuffle=False,
-        batch_size=8,
+        batch_size=64,
         drop_last=False,
         num_workers=3,
         pin_memory=(torch.cuda.is_available()),
