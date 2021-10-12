@@ -11,7 +11,7 @@ class SanityCheckGNNModel(torch.nn.Module):
         super(SanityCheckGNNModel, self).__init__()
 
         self.milp_gnn = MilpGNN(
-            n_gnn_layers=8,
+            n_gnn_layers=4,
             hidden_dim=(8, 9),
         )
         self.lin = torch.nn.Linear(in_features=8, out_features=1)
@@ -36,7 +36,7 @@ def main():
             only_default_config=True,
         ),
         shuffle=True,
-        batch_size=128,
+        batch_size=32,
         drop_last=False,
         num_workers=3,
     )
@@ -61,7 +61,7 @@ def main():
             pred = model(inst)
 
             loss = torch.nn.functional.mse_loss(pred, lbl)
-            losses += [loss]
+            losses += [loss.item()]
             opt.zero_grad()
             loss.backward()
             opt.step()
