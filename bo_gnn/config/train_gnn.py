@@ -18,6 +18,7 @@ import torch_geometric as tg
 import pytorch_lightning
 from pytorch_lightning import Trainer
 from models.baseline import ConfigPerformanceRegressor
+from models.sanity_check import SanityCheckGNNModel
 from data_utils.dataset import MilpDataset, Folder, DataFormat, Problem
 from data_utils.milp_data import MilpBipartiteData
 from torch_geometric.data import Data, DataLoader, Batch
@@ -31,36 +32,23 @@ class MilpGNNTrainable(pl.LightningModule):
         batch_size,
         git_hash,
         problem: Problem,
-        initial_lr=5e-3,
+        initial_lr=5e-4,
         scale_labels=True,
-        n_gnn_layers=1,
+        n_gnn_layers=4,
         gnn_hidden_dim=8,
-        ensemble_size=3,
+        ensemble_size=1,
     ):
         super().__init__()
         self.save_hyperparameters()
 
         self.model_ensemble = torch.nn.ModuleList(
-            [
-                ConfigPerformanceRegressor(
-                    config_dim=config_dim,
-                    n_gnn_layers=n_gnn_layers,
-                    gnn_hidden_dim=gnn_hidden_dim,
-                )
-                for i in range(ensemble_size)
-            ]
+            [SanityCheckGNNModel() for i in range(ensemble_size)]
         )
 
     def forward(self, x, single_instance=False):
         instance_batch, config_batch = x  # we have to clone those
         predictions = torch.stack(
-            [
-                model.forward(
-                    (instance_batch.clone(), config_batch.clone()),
-                    single_instance=single_instance,
-                )
-                for model in self.model_ensemble
-            ],
+            [model.forward(instance_batch.clone()) for model in self.model_ensemble],
             axis=1,
         )
         mean_mu = predictions[:, :, 0:1].mean(axis=1)
@@ -250,7 +238,7 @@ def main():
     )
     model = MilpGNNTrainable(
         config_dim=6,
-        optimizer="Adam",
+        optimizer="RMSprop",
         batch_size=8,
         n_gnn_layers=1,
         gnn_hidden_dim=32,
