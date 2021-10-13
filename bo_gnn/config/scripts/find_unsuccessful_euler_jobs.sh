@@ -1,0 +1,1 @@
+grep --include=lsf.* -rwL $1 -e "Successfully completed."
