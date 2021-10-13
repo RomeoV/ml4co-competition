@@ -14,7 +14,7 @@ from filelock import FileLock
 import pathlib
 import json
 
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 sys.path.append("../../common")
 
@@ -83,6 +83,11 @@ def parse_args():
         type=int,
     )
     parser.add_argument(
+        "-k",
+        "--k_best_config_ids",
+        help="How many of the k best configs should be used. This is only relevant if --use_selected_config_ids is activated.",
+    )
+    parser.add_argument(
         "--use_selected_config_ids",
         help="If true Use specific selection of config id that are defined in data_utils/{task}_instance_and_id_specification.json, else use all configs",
         dest="use_selected_config_ids",
@@ -96,7 +101,6 @@ def parse_args():
     )
 
     parser.add_argument("-d", "--dry_run", help="Dry run.", action="store_true")
-
     args = parser.parse_args()
     return args
 
@@ -115,6 +119,7 @@ def main():
         end_instance_number=args.end_instance_number,
         task_name=args.task_name,
         number_of_random_seeds=args.number_of_random_seeds,
+        k_best_config_ids=args.k_best_config_ids,
         use_selected_config_ids=args.use_selected_config_ids,
         run_selected_instances=args.run_selected_instances
     )
@@ -131,6 +136,7 @@ def solve_instances_and_periodically_write_to_file(
     dry_run=True,
     task_name: str = "1_item_placement",
     number_of_random_seeds: int = 1,
+    k_best_config_ids: Optional[int] = None,
     use_selected_config_ids: bool=False,
     run_selected_instances: bool=False
 ):
@@ -152,7 +158,7 @@ def solve_instances_and_periodically_write_to_file(
     all_actions = []
     if use_selected_config_ids:
         with open("data_utils/{}_instance_and_id_specification.json".format(task_name), "r") as file:
-            selected_config_ids = json.load(file)["selected_config_ids"]
+            selected_config_ids = json.load(file)["selected_config_ids"][str(k_best_config_ids)]
         assert len(selected_config_ids) > 0
         for instance in instance_paths:
             number_of_configs = len(selected_config_ids)
@@ -193,10 +199,11 @@ def solve_instances_and_periodically_write_to_file(
 def solve_a_problem(
     instance_path: str, parameters: Dict[str,int], time_limit: int = 900, dry_run: bool = False,
 ):
+    config_id = parameters["config_id"]
+
     with open(instance_path.replace(".mps.gz", ".json")) as f:
         instance_info = json.load(f)
     print("Running instance {}".format(instance_path))
-    config_id = parameters["config_id"]
 
     model = pyopt.Model()
     model.readProblem(instance_path)
@@ -231,6 +238,17 @@ def solve_a_problem(
                 "time_limit_primal_dual_integral": model.getPrimalDualIntegral(),
             }
         )
+    info.update(
+        {
+            "presolve_config_encoding": config_ids_to_parameters[str(config_id)][0],
+            "heuristic_config_encoding": config_ids_to_parameters[str(config_id)][1],
+            "separating_config_encoding": config_ids_to_parameters[str(config_id)][2],
+            "emphasis_config_encoding": config_ids_to_parameters[str(config_id)][3],
+            "config_id": config_id,
+            "instance_file": pathlib.PosixPath(instance_path).name,
+            "time_limit": time_limit,
+        }
+    )
     return info
 
 
