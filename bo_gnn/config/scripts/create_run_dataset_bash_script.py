@@ -10,7 +10,7 @@ def main():
         "-r", "--run_time", type=str, help="Run Time of jobs, indicate in same format as for submitting jobs i.e. 04:00",
     )
     parser.add_argument(
-        "-v", "--train_valid_split", choices=("train", "validation"),
+        "-v", "--train_valid_split", choices=("train", "valid"),
         help="Indicate to run train or validation split",
     )
     parser.add_argument(
@@ -74,7 +74,7 @@ def main():
                       "{} -j {} -f {} " \
                       "-o {}{}_results.csv " \
                       "-t 900 -s {} -e {} -r 1 \n".format(arguments.user_name, arguments.run_time, arguments.memory_per_core, arguments.task_name,
-                                                    arguments.dataset_path, arguments.number_of_cores,arguments.train_valid_split, arguments.dataset_path, 
+                                                    arguments.dataset_path, arguments.number_of_cores,arguments.train_valid_split, arguments.dataset_path,
                                                     arguments.task_name, int(start_instance), int(end_instance))
             file.write(command)
             start_instance = end_instance
