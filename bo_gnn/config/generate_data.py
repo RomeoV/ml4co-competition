@@ -85,14 +85,14 @@ def parse_args():
     parser.add_argument(
         "-k",
         "--k_best_config_ids_from",
-        help="Indicate the beginning of the range of the k best configs to run. ",
+        help="Indicate the beginning of the range of the k best configs to run. Note this parameter can be set on its own.",
         type=int,
     )
 
     parser.add_argument(
         "-l",
         "--k_best_config_ids_to",
-        help="Indicate the end of the range of the k best configs to run.",
+        help="Indicate the end of the range of the k best configs to run. Note this parameter can only be set in combination with k_best_config_ids_from",
         type=int,
     )
 
@@ -160,23 +160,26 @@ def solve_instances_and_periodically_write_to_file(
     all_instances = []
     all_actions = []
     if k_best_config_ids_from is not None:
-        assert k_best_config_ids_to is not None, k_best_config_ids_to
-        assert k_best_config_ids_from < k_best_config_ids_to
-
         with open("data_utils/{}_instance_and_id_specification.json".format(task_name), "r") as file:
             selected_config_ids_from = json.load(file)["selected_config_ids"][str(k_best_config_ids_from)]
+            assert len(selected_config_ids_from) > 0
+
+    if k_best_config_ids_to is not None:
+        assert k_best_config_ids_from is not None
+        assert k_best_config_ids_from < k_best_config_ids_to
         with open("data_utils/{}_instance_and_id_specification.json".format(task_name), "r") as file:
             selected_config_ids_to = json.load(file)["selected_config_ids"][str(k_best_config_ids_to)]
-        assert len(selected_config_ids_from) > 0
-        assert len(selected_config_ids_to) > 0
+            assert len(selected_config_ids_to) > 0
 
         selected_config_ids = [config_id for config_id in selected_config_ids_to if config_id not in selected_config_ids_from]
+    else:
+        selected_config_ids = selected_config_ids_from
 
-        for instance in instance_paths:
-            number_of_configs = len(selected_config_ids)
-            all_instances += [instance] * number_of_configs * number_of_random_seeds
-            all_actions += [{'config_id': config_id, 'random_seed': random_seed} for config_id, random_seed in
-                            itertools.product(selected_config_ids, range(number_of_random_seeds))]
+    for instance in instance_paths:
+        number_of_configs = len(selected_config_ids)
+        all_instances += [instance] * number_of_configs * number_of_random_seeds
+        all_actions += [{'config_id': config_id, 'random_seed': random_seed} for config_id, random_seed in
+                        itertools.product(selected_config_ids, range(number_of_random_seeds))]
     else:
         for instance in instance_paths:
             number_of_configs = total_number_of_configs
