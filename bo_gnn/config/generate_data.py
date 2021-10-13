@@ -84,8 +84,14 @@ def parse_args():
     )
     parser.add_argument(
         "--use_selected_config_ids",
-        help="If true Use specific selection of config id, else use all configs",
+        help="If true Use specific selection of config id that are defined in data_utils/{task}_instance_and_id_specification.json, else use all configs",
         dest="use_selected_config_ids",
+        action='store_true'
+    )
+    parser.add_argument(
+        "--run_selected_instances",
+        help="If true then run specific instances that are defined in data_utils/{task}_instance_and_id_specification.json",
+        dest="run_selected_instances",
         action='store_true'
     )
 
@@ -95,7 +101,6 @@ def parse_args():
     return args
 
 total_number_of_configs = 352
-selected_config_ids = []
 
 def main():
     args = parse_args()
@@ -110,7 +115,8 @@ def main():
         end_instance_number=args.end_instance_number,
         task_name=args.task_name,
         number_of_random_seeds=args.number_of_random_seeds,
-        use_selected_config_ids=args.use_selected_config_ids
+        use_selected_config_ids=args.use_selected_config_ids,
+        run_selected_instances=args.run_selected_instances
     )
 
 
@@ -125,10 +131,19 @@ def solve_instances_and_periodically_write_to_file(
     dry_run=True,
     task_name: str = "1_item_placement",
     number_of_random_seeds: int = 1,
-    use_selected_config_ids: bool=False
+    use_selected_config_ids: bool=False,
+    run_selected_instances: bool=False
 ):
     instance_path = pathlib.Path(f"{path_to_instances}/{task_name}/{folder}")
-    instance_paths = [os.path.join(instance_path, f"{task_name[2:]}_{instance_id}.mps.gz") for instance_id in range(start_instance_number, end_instance_number)]
+
+    if run_selected_instances:
+        with open("data_utils/{}_instance_and_id_specification.json".format(task_name), "r") as file:
+            instances_to_run = json.load(file)["selected_instances"]
+        assert len(instances_to_run) > 0, len(instances_to_run)
+        instance_paths = [os.path.join(instance_path, f"{task_name[2:]}_{instance_id}.mps.gz") for instance_id in
+                         instances_to_run]
+    else:
+        instance_paths = [os.path.join(instance_path, f"{task_name[2:]}_{instance_id}.mps.gz") for instance_id in range(start_instance_number, end_instance_number)]
 
 
     number_of_instances = end_instance_number - start_instance_number
@@ -136,6 +151,8 @@ def solve_instances_and_periodically_write_to_file(
     all_instances = []
     all_actions = []
     if use_selected_config_ids:
+        with open("data_utils/{}_instance_and_id_specification.json".format(task_name), "r") as file:
+            selected_config_ids = json.load(file)["selected_config_ids"]
         assert len(selected_config_ids) > 0
         for instance in instance_paths:
             number_of_configs = len(selected_config_ids)
