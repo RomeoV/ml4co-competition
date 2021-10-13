@@ -84,21 +84,22 @@ def main():
         for _ in range(arguments.number_of_jobs):
             if arguments.k_best_config_ids_from is not None:
                 if arguments.k_best_config_ids_to is not None:
-                    command = "bsub -o /cluster/scratch/{}/lsf/ -W {} -R 'rusage[mem={}]' -n 32 python3 generate_data.py -n {} -p " \
+                    command = "bsub -o /cluster/scratch/{}/lsf/ -W {} -R 'rusage[mem={}]' -n {} python3 generate_data.py -n {} -p " \
                               "{} -j {} -f {} " \
                               "-o {}{}_results.csv " \
                               "-t 900 -s {} -e {} -r 1 -k {} -l {}\n".format(arguments.user_name, arguments.run_time,
-                                                                  arguments.memory_per_core, arguments.task_name,
+                                                                  arguments.memory_per_core, arguments.number_of_cores, arguments.task_name,
                                                                   arguments.dataset_path, arguments.number_of_cores,
                                                                   arguments.train_valid_split, arguments.dataset_path,
                                                                   arguments.task_name, int(start_instance),
                                                                   int(end_instance), arguments.k_best_config_ids_from, arguments.k_best_config_ids_to)
                 else:
-                    command = "bsub -o /cluster/scratch/{}/lsf/ -W {} -R 'rusage[mem={}]' -n 32 python3 generate_data.py -n {} -p " \
+                    command = "bsub -o /cluster/scratch/{}/lsf/ -W {} -R 'rusage[mem={}]' -n {} python3 generate_data.py -n {} -p " \
                               "{} -j {} -f {} " \
                               "-o {}{}_results.csv " \
                               "-t 900 -s {} -e {} -r 1 -k {} \n".format(arguments.user_name, arguments.run_time,
                                                                              arguments.memory_per_core,
+                                                                        arguments.number_of_cores,
                                                                              arguments.task_name,
                                                                              arguments.dataset_path,
                                                                              arguments.number_of_cores,
@@ -109,10 +110,10 @@ def main():
                                                                              arguments.k_best_config_ids_from,
                                                                              )
             else:
-                command = "bsub -o /cluster/scratch/{}/lsf/ -W {} -R 'rusage[mem={}]' -n 32 python3 generate_data.py -n {} -p " \
+                command = "bsub -o /cluster/scratch/{}/lsf/ -W {} -R 'rusage[mem={}]' -n {} python3 generate_data.py -n {} -p " \
                           "{} -j {} -f {} " \
                           "-o {}{}_results.csv " \
-                          "-t 900 -s {} -e {} -r 1 \n".format(arguments.user_name, arguments.run_time, arguments.memory_per_core, arguments.task_name,
+                          "-t 900 -s {} -e {} -r 1 \n".format(arguments.user_name, arguments.run_time, arguments.memory_per_core, arguments.number_of_cores, arguments.task_name,
                                                         arguments.dataset_path, arguments.number_of_cores,arguments.train_valid_split, arguments.dataset_path,
                                                         arguments.task_name, int(start_instance), int(end_instance))
             file.write(command)
