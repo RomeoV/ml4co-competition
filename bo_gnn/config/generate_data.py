@@ -84,15 +84,18 @@ def parse_args():
     )
     parser.add_argument(
         "-k",
-        "--k_best_config_ids",
-        help="How many of the k best configs should be used. This is only relevant if --use_selected_config_ids is activated.",
+        "--k_best_config_ids_from",
+        help="Indicate the beginning of the range of the k best configs to run. ",
+        type=int,
     )
+
     parser.add_argument(
-        "--use_selected_config_ids",
-        help="If true Use specific selection of config id that are defined in data_utils/{task}_instance_and_id_specification.json, else use all configs",
-        dest="use_selected_config_ids",
-        action='store_true'
+        "-l",
+        "--k_best_config_ids_to",
+        help="Indicate the end of the range of the k best configs to run.",
+        type=int,
     )
+
     parser.add_argument(
         "--run_selected_instances",
         help="If true then run specific instances that are defined in data_utils/{task}_instance_and_id_specification.json",
@@ -119,8 +122,8 @@ def main():
         end_instance_number=args.end_instance_number,
         task_name=args.task_name,
         number_of_random_seeds=args.number_of_random_seeds,
-        k_best_config_ids=args.k_best_config_ids,
-        use_selected_config_ids=args.use_selected_config_ids,
+        k_best_config_ids_from=args.k_best_config_ids_from,
+        k_best_config_ids_to=args.k_best_config_ids_to,
         run_selected_instances=args.run_selected_instances
     )
 
@@ -136,8 +139,8 @@ def solve_instances_and_periodically_write_to_file(
     dry_run=True,
     task_name: str = "1_item_placement",
     number_of_random_seeds: int = 1,
-    k_best_config_ids: Optional[int] = None,
-    use_selected_config_ids: bool=False,
+    k_best_config_ids_from: Optional[int] = None,
+    k_best_config_ids_to: Optional[int] = None,
     run_selected_instances: bool=False
 ):
     instance_path = pathlib.Path(f"{path_to_instances}/{task_name}/{folder}")
@@ -156,10 +159,19 @@ def solve_instances_and_periodically_write_to_file(
 
     all_instances = []
     all_actions = []
-    if use_selected_config_ids:
+    if k_best_config_ids_from is not None:
+        assert k_best_config_ids_to is not None, k_best_config_ids_to
+        assert k_best_config_ids_from < k_best_config_ids_to
+
         with open("data_utils/{}_instance_and_id_specification.json".format(task_name), "r") as file:
-            selected_config_ids = json.load(file)["selected_config_ids"][str(k_best_config_ids)]
-        assert len(selected_config_ids) > 0
+            selected_config_ids_from = json.load(file)["selected_config_ids"][str(k_best_config_ids_from)]
+        with open("data_utils/{}_instance_and_id_specification.json".format(task_name), "r") as file:
+            selected_config_ids_to = json.load(file)["selected_config_ids"][str(k_best_config_ids_to)]
+        assert len(selected_config_ids_from) > 0
+        assert len(selected_config_ids_to) > 0
+
+        selected_config_ids = [config_id for config_id in selected_config_ids_to if config_id not in selected_config_ids_from]
+
         for instance in instance_paths:
             number_of_configs = len(selected_config_ids)
             all_instances += [instance] * number_of_configs * number_of_random_seeds
