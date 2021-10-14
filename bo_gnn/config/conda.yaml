@@ -3,6 +3,7 @@ channels:
   - defaults
   - pytorch
   - nvidia
+  - pyg
 
 dependencies:
   # Minimal dependencies for the competition
@@ -19,15 +20,15 @@ dependencies:
   - filelock
   - pytorch=1.9.1
   - cudatoolkit=11.1
+  - pyg
 
   # additional pip dependencies go here
   - pip
   - pip:
     - pytorch-lightning
-    - torch-scatter -f https://data.pyg.org/whl/torch-1.9.1+cu111.html
-    - torch-sparse -f https://data.pyg.org/whl/torch-1.9.1+cu111.html
-    - torch-geometric
-    - pytorch-lightning
+    #- torch-scatter -f https://data.pyg.org/whl/torch-1.9.1+cu111.html
+    #- torch-sparse -f https://data.pyg.org/whl/torch-1.9.1+cu111.html
+    #- torch-geometric
 
   # Please send us a snapshot of your environment as well
   # to help us troubleshoot potential issues
