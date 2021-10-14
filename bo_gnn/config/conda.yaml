@@ -17,7 +17,7 @@ dependencies:
   - joblib
   - ConfigSpace
   - filelock
-  - pytorch
+  - pytorch=1.9.0
   - cudatoolkit=11.1
 
   # additional pip dependencies go here
