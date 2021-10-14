@@ -1,6 +1,8 @@
 channels:
   - conda-forge
   - defaults
+  - pytorch
+  - nvidia
 
 dependencies:
   # Minimal dependencies for the competition
@@ -16,7 +18,7 @@ dependencies:
   - ConfigSpace
   - filelock
   - pytorch
-  - cudatoolkit=11.1 -c pytorch -c nvidia -c conda-forge -y
+  - cudatoolkit=11.1 -y
 
   # additional pip dependencies go here
    - pip
