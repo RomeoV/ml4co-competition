@@ -18,13 +18,14 @@ dependencies:
   - joblib
   - ConfigSpace
   - filelock
-  - pytorch=1.9.1
+  #- pytorch=1.9.1
   - cudatoolkit=11.1
   - pyg
 
   # additional pip dependencies go here
   - pip
   - pip:
+    - torch
     - pytorch-lightning
     #- torch-scatter -f https://data.pyg.org/whl/torch-1.9.1+cu111.html
     #- torch-sparse -f https://data.pyg.org/whl/torch-1.9.1+cu111.html
