@@ -175,11 +175,12 @@ def solve_instances_and_periodically_write_to_file(
     else:
         selected_config_ids = selected_config_ids_from
 
-    for instance in instance_paths:
-        number_of_configs = len(selected_config_ids)
-        all_instances += [instance] * number_of_configs * number_of_random_seeds
-        all_actions += [{'config_id': config_id, 'random_seed': random_seed} for config_id, random_seed in
-                        itertools.product(selected_config_ids, range(number_of_random_seeds))]
+    if k_best_config_ids_from is not None:
+        for instance in instance_paths:
+            number_of_configs = len(selected_config_ids)
+            all_instances += [instance] * number_of_configs * number_of_random_seeds
+            all_actions += [{'config_id': config_id, 'random_seed': random_seed} for config_id, random_seed in
+                            itertools.product(selected_config_ids, range(number_of_random_seeds))]
     else:
         for instance in instance_paths:
             number_of_configs = total_number_of_configs
