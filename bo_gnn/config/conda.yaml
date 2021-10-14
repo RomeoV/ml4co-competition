@@ -18,7 +18,7 @@ dependencies:
   - ConfigSpace
   - filelock
   - pytorch
-  - cudatoolkit=11.1 -y
+  - cudatoolkit=11.1
 
   # additional pip dependencies go here
   - pip
