@@ -24,7 +24,7 @@ dependencies:
   - pip
   - pip:
     - pytorch-lightning
-    - torch-scatter -f https://data.pyg.org/whl/torch-1.9.0+cu111.html
+    # - torch-scatter -f https://data.pyg.org/whl/torch-1.9.0+cu111.html
     # - torch-sparse -f https://data.pyg.org/whl/torch-1.9.0+cu111.html
     - torch-geometric
     - pytorch-lightning
