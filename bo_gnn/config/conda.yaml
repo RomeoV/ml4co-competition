@@ -21,13 +21,13 @@ dependencies:
   - cudatoolkit=11.1 -y
 
   # additional pip dependencies go here
-   - pip
-   - pip:
-     - pytorch-lightning
-     - torch-scatter -f https://data.pyg.org/whl/torch-1.9.0+cu111.html
-     - torch-sparse -f https://data.pyg.org/whl/torch-1.9.0+cu111.html
-     - torch-geometric
-     - pytorch-lightning
+  - pip
+  - pip:
+    - pytorch-lightning
+    - torch-scatter -f https://data.pyg.org/whl/torch-1.9.0+cu111.html
+    - torch-sparse -f https://data.pyg.org/whl/torch-1.9.0+cu111.html
+    - torch-geometric
+    - pytorch-lightning
 
   # Please send us a snapshot of your environment as well
   # to help us troubleshoot potential issues
