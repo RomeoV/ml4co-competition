@@ -50,7 +50,6 @@ class MilpGNN(torch.nn.Module):
         self.hidden_dim = hidden_dim
         self.n_gnn_layers = n_gnn_layers
 
-        self.input_embedding = InputEmbedding(in_dim=(9, 1), out_dim=hidden_dim)
         self.gnns = torch.nn.ModuleList(
             [
                 GNNFwd(
@@ -76,7 +75,6 @@ class MilpGNN(torch.nn.Module):
         self.loss = F.mse_loss
 
     def forward(self, x):
-        # x = self.input_embedding(x)
         for l in self.gnns:
             x = l(x)
         x_var = self.pool(x.var_feats, x.var_batch_el)
@@ -153,32 +151,17 @@ class GNNFwd(torch.nn.Module):
         return data
 
 
-class InputEmbedding(torch.nn.Module):
-    def __init__(self, in_dim, out_dim):
-        super(InputEmbedding, self).__init__()
-        self.var_emb = torch.nn.Linear(in_features=in_dim[0], out_features=out_dim[0])
-        self.cstr_emb = torch.nn.Linear(in_features=in_dim[1], out_features=out_dim[1])
-
-    def forward(self, x):
-        var_feats_ = self.var_emb(x.var_feats).relu_()
-        cstr_feats_ = self.cstr_emb(x.cstr_feats).relu_()
-        x.var_feats = var_feats_
-        x.cstr_feats = cstr_feats_
-        return x
-
-
 class ConfigEmbedding(torch.nn.Module):
     def __init__(self, in_dim, hidden_dim=None, out_dim=8):
         super(ConfigEmbedding, self).__init__()
         if not hidden_dim:
-            hidden_dim = 4 * in_dim
+            hidden_dim = 64
 
         self.input_batch_norm = torch.nn.BatchNorm1d(in_dim)
         self.lin1 = torch.nn.Linear(in_features=in_dim, out_features=hidden_dim)
         self.lin2 = torch.nn.Linear(in_features=hidden_dim, out_features=out_dim)
 
     def forward(self, x):
-        # x = self.input_batch_norm(x)
         x = self.lin1(x).relu_()
         x = self.lin2(x).relu_()
         return x
