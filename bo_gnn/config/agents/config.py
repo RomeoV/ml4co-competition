@@ -1,9 +1,12 @@
 import os
 from typing import Dict
+import sys
+
+#sys.path.insert(0,'..')
 
 import pytorch_lightning as pl
 import torch
-from ..train_gnn import MilpGNNTrainable
+from train_gnn import MilpGNNTrainable
 from ecole.observation import MilpBipartite
 from torch import Tensor
 from torch_geometric.data import Batch
