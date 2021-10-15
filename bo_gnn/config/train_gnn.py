@@ -150,7 +150,7 @@ def main():
         ensemble_size=3,
         git_hash=_get_current_git_hash(),
         problem=problem,
-        only_one_config=(3, 2, 2)
+        only_one_config=False,
     )
     data_train = DataLoader(
         MilpDataset(
@@ -160,7 +160,7 @@ def main():
             data_format=DataFormat.MAX,
             problem=problem,
             dry=(not torch.cuda.is_available()),
-            only_one_config=(3, 2, 2),
+            only_one_config=False,
         ),
         shuffle=True,
         batch_size=64,
@@ -178,7 +178,7 @@ def main():
             mode=Mode.VALID,
             problem=problem,
             dry=(not torch.cuda.is_available()),
-            only_one_config=(3, 2, 2),
+            only_one_config=False,
         ),
         shuffle=False,
         batch_size=64,
