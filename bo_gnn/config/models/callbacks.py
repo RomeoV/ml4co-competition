@@ -8,6 +8,7 @@ import pickle
 
 import numpy as np
 from data_utils.milp_data import MilpBipartiteData
+from torch_geometric.data import Batch
 
 
 class EvaluatePredictedParametersCallback(pytorch_lightning.callbacks.Callback):
