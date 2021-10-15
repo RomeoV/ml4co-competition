@@ -7,6 +7,7 @@ import numpy as np
 import os
 import pickle
 import enum
+from typing import Tuple, Union
 
 import torch
 import torch_geometric as tg
@@ -48,7 +49,7 @@ class MilpDataset(torch.utils.data.Dataset):
         problem: Problem,
         instances_dir=None,
         dry=False,
-        only_default_config=False,
+        only_one_config: Union[bool, Tuple[int, int, int]] = False,
     ):
         self.problem = problem
         self.csv_data_full = pd.read_csv(csv_file)
@@ -62,12 +63,13 @@ class MilpDataset(torch.utils.data.Dataset):
                 self.csv_data_full.instance_file.isin(chosen_instances)
             ].reset_index(drop=True)
 
-        if only_default_config:
+        if only_one_config:
+            presolve_setting, heuristic_setting, separating_setting = only_one_config
             df = self.csv_data_full
             df = df[
-                (df.presolve_config_encoding == 1)
-                & (df.heuristic_config_encoding == 1)
-                & (df.separating_config_encoding == 1)
+                (df.presolve_config_encoding == presolve_setting)
+                & (df.heuristic_config_encoding == heuristic_setting)
+                & (df.separating_config_encoding == separating_setting)
             ].reset_index(drop=True)
             self.csv_data_full = df
 
