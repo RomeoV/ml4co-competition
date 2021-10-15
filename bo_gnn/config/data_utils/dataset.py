@@ -18,8 +18,16 @@ class DataFormat(enum.Enum):
     ROMEO = enum.auto()
     MAX = enum.auto()
 
+class Mode(enum.Enum):
+    """ Whether to create train or validation split.
+
+    This is necessary because so far we've only generated data for the train samples, so we have to split it ourselves.
+    """
+    TRAIN = enum.auto()
+    VALID = enum.auto()
 
 class Folder(enum.Enum):
+    """ Where to look for the instances. """
     TRAIN = "train"
     VALID = "valid"
 
@@ -35,6 +43,7 @@ class MilpDataset(torch.utils.data.Dataset):
         self,
         csv_file,
         folder: Folder,
+        mode: Mode,
         data_format: DataFormat,
         problem: Problem,
         instances_dir=None,
@@ -61,6 +70,16 @@ class MilpDataset(torch.utils.data.Dataset):
                 & (df.separating_config_encoding == 1)
             ].reset_index(drop=True)
             self.csv_data_full = df
+
+        if mode == Mode.TRAIN:
+            # Select instances ending/not ending in "0" for train/validation split
+            self.csv_data_full = self.csv_data_full[
+                ~self.csv_data_full.instance_file.str.match(".*0.mps.*")
+            ].reset_index(drop=True)
+        elif mode == Mode.VALID:
+            self.csv_data_full = self.csv_data_full[
+                self.csv_data_full.instance_file.str.match(".*0.mps.*")
+            ].reset_index(drop=True)
 
         if instances_dir:
             self.instance_path = pathlib.Path(instances_dir)
