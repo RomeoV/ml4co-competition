@@ -3,7 +3,7 @@ from typing import Dict
 
 import pytorch_lightning as pl
 import torch
-from bo_gnn.config.train_gnn import MilpGNNTrainable
+from ..train_gnn import MilpGNNTrainable
 from ecole.observation import MilpBipartite
 from torch import Tensor
 from torch_geometric.data import Batch
