@@ -12,16 +12,19 @@ from torch_geometric.data import Batch
 
 
 class EvaluatePredictedParametersCallback(pytorch_lightning.callbacks.Callback):
+    def __init__(self, configs):
+        self.configs = configs
+
     def on_train_epoch_start(self, trainer, pl_module):
-        def find_best_configs(pl_module, instance, general_config):
+        def find_best_configs(pl_module, instance):
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
             all_config_inputs = torch.stack(
                 [
                     torch.tensor(
-                        [a, b, c, *general_config],
+                        [a, b, c],
                         dtype=torch.float32,
                     )
-                    for a, b, c in itertools.product(range(4), range(4), range(4))
+                    for (a, b, c) in self.configs
                 ],
                 axis=0,
             ).to(device)
@@ -84,13 +87,9 @@ class EvaluatePredictedParametersCallback(pytorch_lightning.callbacks.Callback):
         val_data_df = trainer.val_dataloaders[0].dataset.csv_data_full
 
         for instance in val_data_df.instance_file.unique():
-            general_config = val_data_df[val_data_df.instance_file == instance].iloc[
-                0, 3:6
-            ]  # timelimit, initial_primal, initial_dual
             best_configs = find_best_configs(
                 pl_module,
                 get_instance_data(instance),
-                general_config,
             )
 
             for k, v in best_configs.items():

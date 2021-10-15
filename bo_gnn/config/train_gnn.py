@@ -140,16 +140,8 @@ def _get_current_git_hash():
 def main():
     problem = Problem.ONE
 
-    trainer = Trainer(
-        max_epochs=1000,
-        gpus=1 if torch.cuda.is_available() else 0,
-        callbacks=[
-            EvaluatePredictedParametersCallback(),
-            pytorch_lightning.callbacks.LearningRateMonitor(logging_interval="epoch"),
-        ],
-    )
     model = MilpGNNTrainable(
-        config_dim=6,
+        config_dim=3,
         optimizer="RMSprop",
         initial_lr=5e-4,
         batch_size=64,
@@ -176,6 +168,8 @@ def main():
         num_workers=8,
         pin_memory=(torch.cuda.is_available()),
     )
+    configs_in_dataset = data_train.dataset.csv_data.loc[:, ["presolve_config_encoding", "heuristic_config_encoding", "separating_config_encoding"]].apply(tuple, axis=1).unique()
+
     data_valid = DataLoader(
         MilpDataset(
             "data/exhaustive_dataset_20_configs/1_item_placement_results_9898.csv",
@@ -198,6 +192,15 @@ def main():
         data_train.dataset.csv_data_full.time_limit_primal_dual_integral.std(),
     )
     model.mu, model.sig = mu, sig
+
+    trainer = Trainer(
+        max_epochs=1000,
+        gpus=1 if torch.cuda.is_available() else 0,
+        callbacks=[
+            EvaluatePredictedParametersCallback(configs=configs_in_dataset),
+            pytorch_lightning.callbacks.LearningRateMonitor(logging_interval="epoch"),
+        ],
+    )
     trainer.fit(model, train_dataloaders=data_train, val_dataloaders=data_valid)
 
 
