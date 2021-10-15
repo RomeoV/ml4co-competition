@@ -44,7 +44,7 @@ class MilpGNNTrainable(pl.LightningModule):
         self.save_hyperparameters()
 
         self.model_ensemble = torch.nn.ModuleList(
-            [ConfigPerformanceRegressor() for i in range(ensemble_size)]
+            [ConfigPerformanceRegressor(config_dim=config_dim, n_gnn_layers=n_gnn_layers, gnn_hidden_dim=gnn_hidden_dim) for i in range(ensemble_size)]
         )
 
     def forward(self, x, single_instance=False):
