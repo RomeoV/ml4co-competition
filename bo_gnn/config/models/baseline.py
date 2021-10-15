@@ -31,9 +31,6 @@ class ConfigPerformanceRegressor(torch.nn.Module):
 
         x = torch.cat([graph_embedding, config_embedding], dim=-1).relu_()
         regression_pred = self.regression_head(x)
-        mu = regression_pred[:, 0:1]
-        var = regression_pred[:, 1:2].exp()  # trick to make sure std is positive
-        regression_pred = torch.cat([mu, var], dim=-1)
         return regression_pred
 
 
@@ -179,7 +176,10 @@ class RegressionHead(torch.nn.Module):
     def forward(self, x):
         x = self.lin1(x).relu_()
         x = self.lin2(x)
-        return x
+        mu = x[:, 0:1]
+        var = x[:, 1:2].exp()  # trick to make sure std is positive
+        regression_pred = torch.cat([mu, var], dim=-1)
+        return regression_pred
 
 
 class TestModules(unittest.TestCase):

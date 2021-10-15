@@ -44,7 +44,7 @@ class MilpGNNTrainable(pl.LightningModule):
         self.save_hyperparameters()
 
         self.model_ensemble = torch.nn.ModuleList(
-            [SanityCheckGNNModel() for i in range(ensemble_size)]
+            [ConfigPerformanceRegressor() for i in range(ensemble_size)]
         )
 
     def forward(self, x, single_instance=False):
@@ -138,13 +138,13 @@ def _get_current_git_hash():
 
 
 def main():
-    problem = Problem.TWO
+    problem = Problem.ONE
 
     model = MilpGNNTrainable(
         config_dim=3,
         optimizer="RMSprop",
         initial_lr=5e-4,
-        batch_size=8,
+        batch_size=64,
         n_gnn_layers=4,
         gnn_hidden_dim=8,
         ensemble_size=3,
@@ -164,7 +164,7 @@ def main():
             instance_dir=f"/instances/{problem.value}/{Folder.TRAIN.value}",
         ),
         shuffle=True,
-        batch_size=8,
+        batch_size=64,
         drop_last=False,
         num_workers=8,
         pin_memory=(torch.cuda.is_available()),
@@ -183,7 +183,7 @@ def main():
             instance_dir=f"/instances/{problem.value}/{Folder.TRAIN.value}",
         ),
         shuffle=False,
-        batch_size=8,
+        batch_size=64,
         drop_last=False,
         num_workers=8,
         pin_memory=(torch.cuda.is_available()),
