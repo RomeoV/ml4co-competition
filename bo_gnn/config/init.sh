@@ -7,5 +7,8 @@ conda env create -n ml4co -f conda.yaml
 conda activate ml4co
 
 # additional installation commands go here
+pip install torch-scatter -f https://data.pyg.org/whl/torch-1.9.0+cu111.html
+pip install torch-sparse -f https://data.pyg.org/whl/torch-1.9.0+cu111.html
+pip install torch-geometric
 
 conda deactivate

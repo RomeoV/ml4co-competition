@@ -20,7 +20,7 @@ dependencies:
   - filelock
   - pytorch=1.9.1
   - cudatoolkit=11.1
-  - pytorch_geometric
+  #- pytorch_geometric
   - pytorch-lightning
 
   # additional pip dependencies go here
