@@ -160,7 +160,7 @@ def main():
     )
     data_train = DataLoader(
         MilpDataset(
-            "exhaustive_dataset_20_configs/1_item_placement_results_9898.csv",
+            "data/exhaustive_dataset_20_configs/1_item_placement_results_9898.csv",
             folder=Folder.TRAIN,
             mode=Mode.TRAIN,
             data_format=DataFormat.MAX,
@@ -176,7 +176,7 @@ def main():
     )
     data_valid = DataLoader(
         MilpDataset(
-            "exhaustive_dataset_20_configs/1_item_placement_results_9898.csv",
+            "data/exhaustive_dataset_20_configs/1_item_placement_results_9898.csv",
             folder=Folder.TRAIN,
             data_format=DataFormat.MAX,
             mode=Mode.VALID,
