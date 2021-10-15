@@ -118,9 +118,6 @@ class MilpDataset(torch.utils.data.Dataset):
                 "presolve_config_encoding",
                 "heuristic_config_encoding",
                 "separating_config_encoding",
-                "time_limit",
-                "initial_primal_bound",
-                "initial_dual_bound",
             ]
         else:
             raise "Unsupported data format"
