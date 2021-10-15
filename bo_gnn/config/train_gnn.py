@@ -20,7 +20,7 @@ from pytorch_lightning import Trainer
 from models.baseline import ConfigPerformanceRegressor
 from models.sanity_check import SanityCheckGNNModel
 from models.callbacks import EvaluatePredictedParametersCallback
-from data_utils.dataset import MilpDataset, Folder, DataFormat, Problem
+from data_utils.dataset import MilpDataset, Folder, DataFormat, Problem, Mode
 from data_utils.milp_data import MilpBipartiteData
 from torch_geometric.data import Data, DataLoader, Batch
 
@@ -160,32 +160,34 @@ def main():
     )
     data_train = DataLoader(
         MilpDataset(
-            "data/max_train_data.csv",
+            "exhaustive_dataset_20_configs/1_item_placement_results_9898.csv",
             folder=Folder.TRAIN,
+            mode=Mode.TRAIN,
             data_format=DataFormat.MAX,
             problem=problem,
             dry=(not torch.cuda.is_available()),
-            only_default_config=False,
+            only_default_config=True,
         ),
         shuffle=True,
         batch_size=64,
         drop_last=False,
-        num_workers=3,
+        num_workers=8,
         pin_memory=(torch.cuda.is_available()),
     )
     data_valid = DataLoader(
         MilpDataset(
-            "data/max_valid_data.csv",
+            "exhaustive_dataset_20_configs/1_item_placement_results_9898.csv",
             folder=Folder.TRAIN,
             data_format=DataFormat.MAX,
+            mode=Mode.VALID,
             problem=problem,
             dry=(not torch.cuda.is_available()),
-            only_default_config=False,
+            only_default_config=True,
         ),
         shuffle=False,
         batch_size=64,
         drop_last=False,
-        num_workers=3,
+        num_workers=8,
         pin_memory=(torch.cuda.is_available()),
     )
     # TODO clean this up
