@@ -12,8 +12,9 @@ from torch_geometric.data import Batch
 
 
 class EvaluatePredictedParametersCallback(pytorch_lightning.callbacks.Callback):
-    def __init__(self, configs):
+    def __init__(self, configs, instance_dir):
         self.configs = configs
+        self.instance_dir = pathlib.Path(instance_dir)
 
     def on_train_epoch_start(self, trainer, pl_module):
         def find_best_configs(pl_module, instance):
@@ -66,12 +67,8 @@ class EvaluatePredictedParametersCallback(pytorch_lightning.callbacks.Callback):
 
         def get_instance_data(instance_file):
             # TODO clean this up
-            path = pathlib.Path(
-                f"../../instances/{pl_module.hparams.problem.value}/train"
-            )
-
             with open(
-                os.path.join(path, instance_file.replace(".mps.gz", ".pkl")),
+                os.path.join(self.instance_dir, instance_file.replace(".mps.gz", ".pkl")),
                 "rb",
             ) as infile:
                 instance_description_pkl = pickle.load(infile)

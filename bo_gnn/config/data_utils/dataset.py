@@ -47,7 +47,7 @@ class MilpDataset(torch.utils.data.Dataset):
         mode: Mode,
         data_format: DataFormat,
         problem: Problem,
-        instances_dir=None,
+        instance_dir=None,
         dry=False,
         only_one_config: Union[bool, Tuple[int, int, int]] = False,
     ):
@@ -83,8 +83,8 @@ class MilpDataset(torch.utils.data.Dataset):
                 self.csv_data_full.instance_file.str.match(".*0.mps.*")
             ].reset_index(drop=True)
 
-        if instances_dir:
-            self.instance_path = pathlib.Path(instances_dir)
+        if instance_dir:
+            self.instance_path = pathlib.Path(instance_dir)
         else:
             self.instance_path = pathlib.Path(
                 f"../../instances/{problem.value}/{folder.value}"
