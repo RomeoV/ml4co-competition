@@ -21,7 +21,7 @@ dependencies:
   #- pytorch=1.9.1
   #- cudatoolkit=11.1
   #- pytorch_geometric
-  - pytorch-lightning
+  - pytorch-lightning=1.4.5
 
   # additional pip dependencies go here
   #- pip
