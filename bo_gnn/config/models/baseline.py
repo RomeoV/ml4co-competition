@@ -37,10 +37,9 @@ class ConfigPerformanceRegressor(torch.nn.Module):
 class MilpGNN(torch.nn.Module):
     def __init__(
         self,
-        hidden_dim: Tuple[int, int] = (8, 4),
-        out_dim=8,
-        n_gnn_layers=1,
-        use_batch_norm: bool = False,
+        hidden_dim: Tuple[int, int],
+        n_gnn_layers,
+        use_batch_norm: bool,
     ):
         super(MilpGNN, self).__init__()
 
@@ -65,11 +64,6 @@ class MilpGNN(torch.nn.Module):
             ]
         )
         self.pool = tg.nn.global_mean_pool
-        self.out_layer = torch.nn.Linear(
-            in_features=hidden_dim[0], out_features=out_dim
-        )  # we use this to make sure we achieve the correct out_dim
-
-        self.loss = F.mse_loss
 
     def forward(self, x):
         for l in self.gnns:
@@ -77,7 +71,6 @@ class MilpGNN(torch.nn.Module):
         x_var = self.pool(x.var_feats, x.var_batch_el)
         x_cstr = self.pool(x.cstr_feats, x.cstr_batch_el)
         x = torch.cat([x_var, x_cstr], axis=-1)
-        # x = self.out_layer(x).relu_()
         return x
 
 
