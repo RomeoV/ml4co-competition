@@ -50,7 +50,7 @@ class MilpGNNTrainable(pl.LightningModule):
     def forward(self, x, single_instance=False):
         instance_batch, config_batch = x  # we have to clone those
         predictions = torch.stack(
-            [model.forward((instance_batch.clone(), config_batch.clone())) for model in self.model_ensemble],
+            [model.forward((instance_batch.clone(), config_batch.clone()), single_instance=single_instance) for model in self.model_ensemble],
             axis=1,
         )
         mean_mu = predictions[:, :, 0:1].mean(axis=1)
