@@ -119,14 +119,15 @@ class MilpGNNTrainable(pl.LightningModule):
             optimizer = torch.optim.RMSprop(
                 self.parameters(), lr=self.hparams.initial_lr
             )
-        lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer, "min", verbose=True, min_lr=1e-6
-        )
-        return {
-            "optimizer": optimizer,
-            "lr_scheduler": lr_scheduler,
-            "monitor": "train_loss",
-        }
+        # lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        #     optimizer, "min", verbose=True, min_lr=1e-6
+        # )
+        # return {
+        #     "optimizer": optimizer,
+        #     "lr_scheduler": lr_scheduler,
+        #     "monitor": "train_loss",
+        # }
+        return optimizer
 
 
 def _get_current_git_hash():
@@ -146,7 +147,7 @@ def main():
         optimizer="RMSprop",
         initial_lr=5e-4,
         batch_size=64,
-        n_gnn_layers=8,
+        n_gnn_layers=4,
         gnn_hidden_dim=32,
         ensemble_size=3,
         git_hash=_get_current_git_hash(),
