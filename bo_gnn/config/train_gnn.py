@@ -148,7 +148,7 @@ def main():
         initial_lr=5e-4,
         batch_size=64,
         n_gnn_layers=4,
-        gnn_hidden_dim=32,
+        gnn_hidden_dim=64,
         ensemble_size=3,
         git_hash=_get_current_git_hash(),
         problem=problem,
