@@ -140,7 +140,7 @@ def _get_current_git_hash():
 
 def main():
     problem = Problem.ONE
-    dry = subprocess.run(['hostname'], capture_output=True).stdout.decode()[:3] != "eu"
+    dry = subprocess.run(['hostname'], capture_output=True).stdout.decode()[:3] != "eu-"
 
     model = MilpGNNTrainable(
         config_dim=3,
