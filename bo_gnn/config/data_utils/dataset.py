@@ -52,15 +52,12 @@ class MilpDataset(torch.utils.data.Dataset):
         only_one_config: Union[bool, Tuple[int, int, int]] = False,
     ):
         self.problem = problem
+        self.mode = mode
         self.csv_data_full = pd.read_csv(csv_file)
 
         if dry:
-            instances = self.csv_data_full.instance_file.unique()
-            chosen_instances = np.random.choice(
-                instances, size=min(3, len(instances)), replace=False
-            )
             self.csv_data_full = self.csv_data_full[
-                self.csv_data_full.instance_file.isin(chosen_instances)
+                self.csv_data_full.instance_file.str.match(".*_\d\d.mps")
             ].reset_index(drop=True)
 
         if only_one_config:
@@ -123,8 +120,6 @@ class MilpDataset(torch.utils.data.Dataset):
             raise "Unsupported data format"
 
         self.csv_data = self.csv_data_full[self.cols]
-        # breakpoint()
-        # print("a")
 
     def __len__(self):
         return len(self.csv_data)

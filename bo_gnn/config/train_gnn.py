@@ -139,6 +139,7 @@ def _get_current_git_hash():
 
 def main():
     problem = Problem.ONE
+    dry = subprocess.run(['hostname'], capture_output=True).stdout.decode()[:3] != "eu"
 
     model = MilpGNNTrainable(
         config_dim=3,
@@ -159,15 +160,15 @@ def main():
             mode=Mode.TRAIN,
             data_format=DataFormat.MAX,
             problem=problem,
-            dry=(not torch.cuda.is_available()),
+            dry=dry,
             only_one_config=False,
-            instance_dir=f"/instances/{problem.value}/{Folder.TRAIN.value}",
+            instance_dir=f"{'../..' if dry else ''}/instances/{problem.value}/{Folder.TRAIN.value}",
         ),
         shuffle=True,
         batch_size=64,
         drop_last=False,
-        num_workers=8,
-        pin_memory=(torch.cuda.is_available()),
+        num_workers=8 if not dry else 0,
+        pin_memory=torch.cuda.is_available() and not dry,
     )
     configs_in_dataset = data_train.dataset.csv_data.loc[:, ["presolve_config_encoding", "heuristic_config_encoding", "separating_config_encoding"]].apply(tuple, axis=1).unique()
 
@@ -178,15 +179,15 @@ def main():
             data_format=DataFormat.MAX,
             mode=Mode.VALID,
             problem=problem,
-            dry=(not torch.cuda.is_available()),
+            dry=dry,
             only_one_config=False,
-            instance_dir=f"/instances/{problem.value}/{Folder.TRAIN.value}",
+            instance_dir=f"{'../..' if dry else ''}/instances/{problem.value}/{Folder.TRAIN.value}",
         ),
         shuffle=False,
         batch_size=64,
         drop_last=False,
-        num_workers=8,
-        pin_memory=(torch.cuda.is_available()),
+        num_workers=8 if not dry else 0,
+        pin_memory=torch.cuda.is_available() and not dry,
     )
     # TODO clean this up
     mu, sig = (
@@ -199,7 +200,7 @@ def main():
         max_epochs=1000,
         gpus=1 if torch.cuda.is_available() else 0,
         callbacks=[
-            EvaluatePredictedParametersCallback(configs=configs_in_dataset, instance_dir=f"/instances/{problem.value}/{Folder.TRAIN.value}"),
+            EvaluatePredictedParametersCallback(configs=configs_in_dataset, instance_dir=f"{'../..' if dry else ''}/instances/{problem.value}/{Folder.TRAIN.value}"),
             pytorch_lightning.callbacks.LearningRateMonitor(logging_interval="epoch"),
         ],
     )
