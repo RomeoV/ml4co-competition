@@ -39,7 +39,6 @@ class MilpGNN(torch.nn.Module):
         self,
         hidden_dim: Tuple[int, int],
         n_gnn_layers,
-        use_batch_norm: bool,
     ):
         super(MilpGNN, self).__init__()
 
