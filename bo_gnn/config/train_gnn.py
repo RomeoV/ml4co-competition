@@ -18,7 +18,9 @@ import torch_geometric as tg
 import pytorch_lightning
 from pytorch_lightning import Trainer
 from models.baseline import ConfigPerformanceRegressor
-from data_utils.dataset import MilpDataset, Folder, DataFormat, Problem
+from models.sanity_check import SanityCheckGNNModel
+from models.callbacks import EvaluatePredictedParametersCallback
+from data_utils.dataset import MilpDataset, Folder, DataFormat, Problem, Mode
 from data_utils.milp_data import MilpBipartiteData
 from torch_geometric.data import Data, DataLoader, Batch
 
@@ -28,39 +30,26 @@ class MilpGNNTrainable(pl.LightningModule):
         self,
         config_dim,
         optimizer,
+        initial_lr,
         batch_size,
         git_hash,
         problem: Problem,
-        initial_lr=5e-4,
-        scale_labels=True,
-        n_gnn_layers=1,
-        gnn_hidden_layers=8,
-        ensemble_size=3,
+        n_gnn_layers,
+        gnn_hidden_dim,
+        ensemble_size,
+        only_one_config=False,
     ):
         super().__init__()
         self.save_hyperparameters()
 
         self.model_ensemble = torch.nn.ModuleList(
-            [
-                ConfigPerformanceRegressor(
-                    config_dim=config_dim,
-                    n_gnn_layers=n_gnn_layers,
-                    gnn_hidden_layers=gnn_hidden_layers,
-                )
-                for i in range(ensemble_size)
-            ]
+            [ConfigPerformanceRegressor(config_dim=config_dim, n_gnn_layers=n_gnn_layers, gnn_hidden_dim=gnn_hidden_dim) for i in range(ensemble_size)]
         )
 
     def forward(self, x, single_instance=False):
         instance_batch, config_batch = x  # we have to clone those
         predictions = torch.stack(
-            [
-                model.forward(
-                    (instance_batch.clone(), config_batch.clone()),
-                    single_instance=single_instance,
-                )
-                for model in self.model_ensemble
-            ],
+            [model.forward((instance_batch.clone(), config_batch.clone()), single_instance=single_instance) for model in self.model_ensemble],
             axis=1,
         )
         mean_mu = predictions[:, :, 0:1].mean(axis=1)
@@ -70,13 +59,21 @@ class MilpGNNTrainable(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         instance_batch, config_batch, label_batch = batch
-        if self.hparams.scale_labels:
-            label_batch = (label_batch - self.mu) / self.sig
+        instance_batch.cstr_feats.requires_grad_(True)
+        instance_batch.var_feats.requires_grad_(True)
+        instance_batch.edge_attr.requires_grad_(True)
+        config_batch.requires_grad_(True)
+
+        label_batch = label_batch.unsqueeze(axis=2)  # (B, 1, 1)
+
         pred = self.forward((instance_batch, config_batch))[0]
-        loss = F.gaussian_nll_loss(pred[:, :, 0], label_batch, pred[:, :, 1])
-        l1_loss = F.l1_loss(pred[:, :, 0], label_batch)
-        l2_loss = F.mse_loss(pred[:, :, 0], label_batch)
-        sigs = pred[:, :, 1].mean(axis=1).sqrt()
+        pred_mu = pred[:, :, 0:1]
+        pred_var = pred[:, :, 1:2]
+
+        loss = F.gaussian_nll_loss(pred_mu, label_batch, pred_var)
+        l1_loss = F.l1_loss(pred_mu, label_batch)
+        l2_loss = F.mse_loss(pred_mu, label_batch)
+        sigs = pred_var.mean(axis=1).sqrt()
         self.log_dict(
             {
                 "train_loss": loss,
@@ -92,9 +89,8 @@ class MilpGNNTrainable(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         instance_batch, config_batch, label_batch = batch
-        if self.hparams.scale_labels:
-            label_batch = (label_batch - self.mu) / self.sig
-        pred, mean_mu, mean_var, epi_var = self.forward((instance_batch, config_batch))
+
+        _pred, mean_mu, mean_var, epi_var = self.forward((instance_batch, config_batch))
         nll_loss = F.gaussian_nll_loss(mean_mu, label_batch, mean_var)
         l1_loss = F.l1_loss(mean_mu, label_batch)
         l2_loss = F.mse_loss(mean_mu, label_batch)
@@ -128,103 +124,6 @@ class MilpGNNTrainable(pl.LightningModule):
         }
 
 
-class EvaluatePredictedParametersCallback(pytorch_lightning.callbacks.Callback):
-    def on_train_epoch_start(self, trainer, pl_module):
-        def find_best_configs(pl_module, instance, general_config):
-            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-            all_config_inputs = torch.stack(
-                [
-                    torch.tensor(
-                        [a, b, c, *general_config],
-                        dtype=torch.float32,
-                    )
-                    for a, b, c in itertools.product(range(4), range(4), range(4))
-                ],
-                axis=0,
-            ).to(device)
-
-            instance_batch = Batch.from_data_list([instance]).to(device)
-
-            pl_module.eval()
-            preds, mean_mu, mean_var, epi_var = pl_module.forward(
-                (instance_batch, all_config_inputs), single_instance=True
-            )
-            pl_module.train()
-
-            best_config_id = {}
-            best_config_id["mean"] = mean_mu.argmin()
-            best_config_id["optimistic"] = (mean_mu - mean_var.sqrt()).argmin()
-            best_config_id["pessimistic"] = (mean_mu + mean_var.sqrt()).argmin()
-
-            best_config = {
-                k: all_config_inputs[v, 0:3].to(torch.int32)
-                for k, v in best_config_id.items()
-            }
-
-            return best_config
-
-        def percentile_of_config(config, instance, df):
-            pred_with_config = df[
-                (df.instance_file == instance)
-                & (df.presolve_config_encoding == int(config[0]))
-                & (df.heuristic_config_encoding == int(config[1]))
-                & (df.separating_config_encoding == int(config[2]))
-            ].time_limit_primal_dual_integral.median()
-
-            percentile = scipy.stats.percentileofscore(
-                df[df.instance_file == instance].time_limit_primal_dual_integral,
-                pred_with_config,
-            )
-
-            return percentile
-
-        def get_instance_data(instance_file):
-            # TODO clean this up
-            path = pathlib.Path(
-                f"../../instances/{pl_module.hparams.problem.value}/train"
-            )
-
-            with open(
-                os.path.join(path, instance_file.replace(".mps.gz", ".pkl")),
-                "rb",
-            ) as infile:
-                instance_description_pkl = pickle.load(infile)
-                instance_data = MilpBipartiteData(
-                    var_feats=instance_description_pkl.variable_features,
-                    cstr_feats=instance_description_pkl.constraint_features,
-                    edge_indices=instance_description_pkl.edge_features.indices,
-                    edge_values=instance_description_pkl.edge_features.values,
-                )
-            return instance_data
-
-        percentiles = {"mean": [], "optimistic": [], "pessimistic": [], "default": []}
-        val_data_df = trainer.val_dataloaders[0].dataset.csv_data_full
-
-        for instance in val_data_df.instance_file.unique():
-            general_config = val_data_df[val_data_df.instance_file == instance].iloc[
-                0, 3:6
-            ]  # timelimit, initial_primal, initial_dual
-            best_configs = find_best_configs(
-                pl_module,
-                get_instance_data(instance),
-                general_config,
-            )
-
-            for k, v in best_configs.items():
-                percentiles[k].append(percentile_of_config(v, instance, val_data_df))
-
-            percentile_of_default = percentile_of_config(
-                np.array([1, 1, 1]), instance, val_data_df
-            )
-            percentiles["default"].append(percentile_of_default)
-
-        percentile_means = {
-            f"{k}_pred_percentile": torch.tensor(v).mean()
-            for k, v in percentiles.items()
-        }
-        self.log_dict(percentile_means, prog_bar=True)
-
-
 def _get_current_git_hash():
     retval = subprocess.run(
         ["git", "rev-parse", "HEAD"], capture_output=True, check=True
@@ -235,57 +134,66 @@ def _get_current_git_hash():
 
 def main():
     problem = Problem.ONE
+    dry = subprocess.run(['hostname'], capture_output=True).stdout.decode()[:3] != "eu-"
+
+    model = MilpGNNTrainable(
+        config_dim=3,
+        optimizer="RMSprop",
+        initial_lr=5e-4,
+        batch_size=64 if not dry else 4,
+        n_gnn_layers=4,
+        gnn_hidden_dim=8,
+        ensemble_size=3,
+        git_hash=_get_current_git_hash(),
+        problem=problem,
+        only_one_config=False,
+    )
+    data_train = DataLoader(
+        MilpDataset(
+            "data/exhaustive_dataset_20_configs/1_item_placement_results_9898.csv",
+            folder=Folder.TRAIN,
+            mode=Mode.TRAIN,
+            data_format=DataFormat.MAX,
+            problem=problem,
+            dry=dry,
+            only_one_config=False,
+            instance_dir=f"{'../..' if dry else ''}/instances/{problem.value}/{Folder.TRAIN.value}",
+        ),
+        shuffle=True,
+        batch_size=64 if not dry else 4,
+        drop_last=False,
+        num_workers=8 if not dry else 0,
+        pin_memory=torch.cuda.is_available() and not dry,
+    )
+    configs_in_dataset = data_train.dataset.csv_data.loc[:, ["presolve_config_encoding", "heuristic_config_encoding", "separating_config_encoding"]].apply(tuple, axis=1).unique()
+
+    data_valid = DataLoader(
+        MilpDataset(
+            "data/exhaustive_dataset_20_configs/1_item_placement_results_9898.csv",
+            folder=Folder.TRAIN,
+            data_format=DataFormat.MAX,
+            mode=Mode.VALID,
+            problem=problem,
+            dry=dry,
+            only_one_config=False,
+            instance_dir=f"{'../..' if dry else ''}/instances/{problem.value}/{Folder.TRAIN.value}",
+        ),
+        shuffle=False,
+        batch_size=64 if not dry else 4,
+        drop_last=False,
+        num_workers=8 if not dry else 0,
+        pin_memory=torch.cuda.is_available() and not dry,
+    )
+    # TODO clean this up
 
     trainer = Trainer(
         max_epochs=1000,
         gpus=1 if torch.cuda.is_available() else 0,
         callbacks=[
-            EvaluatePredictedParametersCallback(),
+            EvaluatePredictedParametersCallback(configs=configs_in_dataset, instance_dir=f"{'../..' if dry else ''}/instances/{problem.value}/{Folder.TRAIN.value}"),
             pytorch_lightning.callbacks.LearningRateMonitor(logging_interval="epoch"),
         ],
     )
-    model = MilpGNNTrainable(
-        config_dim=6,
-        optimizer="Adam",
-        batch_size=8,
-        n_gnn_layers=1,
-        gnn_hidden_layers=8,
-        ensemble_size=3,
-        git_hash=_get_current_git_hash(),
-        problem=problem,
-    )
-    data_train = DataLoader(
-        MilpDataset(
-            "data/max_train_data.csv",
-            folder=Folder.TRAIN,
-            data_format=DataFormat.MAX,
-            problem=problem,
-            dry=(not torch.cuda.is_available()),
-        ),
-        shuffle=True,
-        batch_size=128,
-        drop_last=True,
-        num_workers=3,
-    )
-    data_valid = DataLoader(
-        MilpDataset(
-            "data/max_valid_data.csv",
-            folder=Folder.TRAIN,
-            data_format=DataFormat.MAX,
-            problem=problem,
-            dry=(not torch.cuda.is_available()),
-        ),
-        shuffle=False,
-        batch_size=128,
-        drop_last=True,
-        num_workers=3,
-    )
-    # TODO clean this up
-    mu, sig = (
-        data_train.dataset.csv_data_full.time_limit_primal_dual_integral.mean(),
-        data_train.dataset.csv_data_full.time_limit_primal_dual_integral.std(),
-    )
-    model.mu, model.sig = mu, sig
     trainer.fit(model, train_dataloaders=data_train, val_dataloaders=data_valid)
 
 
