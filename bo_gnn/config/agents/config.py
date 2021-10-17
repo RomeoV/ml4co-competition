@@ -37,6 +37,7 @@ class ObservationFunction(MilpBipartite):
     def extract(self, model, done):
         instance_graph = super(ObservationFunction, self).extract(model, done)
 
+        # TODO: remove primal and dual bounds
         return (instance_graph, (model.primal_bound, model.dual_bound))
 
 class Policy():
