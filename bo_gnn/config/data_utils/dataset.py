@@ -121,17 +121,20 @@ class MilpDataset(torch.utils.data.Dataset):
 
         self.csv_data = self.csv_data_full[self.cols]
 
+        # compute per-instance mu and sigma and normalize label by that
+        grouped_labels = self.csv_data_full.loc[:, ['instance_file', 'time_limit_primal_dual_integral']].groupby('instance_file')
+        self.data_mu = grouped_labels.mean()
+        self.data_sig = grouped_labels.std()
+
     def __len__(self):
         return len(self.csv_data)
 
     def __getitem__(self, idx):
-        # if torch.is_tensor(idx):
-        #     idx = idx.tolist()
-
         instance_file, primal_dual_int = self.csv_data_full.loc[
             idx, ["instance_file", "time_limit_primal_dual_integral"]
         ]
-        primal_dual_int = torch.tensor([primal_dual_int], dtype=torch.float32)
+        mu, sig = self.data_mu.loc[instance_file][0], self.data_sig.loc[instance_file][0]
+        primal_dual_int_standarized = torch.tensor([(primal_dual_int - mu) / sig], dtype=torch.float32)
         config_arr = torch.tensor(self.csv_data.loc[idx], dtype=torch.float32)
         with open(
             os.path.join(self.instance_path, instance_file.replace(".mps.gz", ".pkl")),
@@ -144,7 +147,7 @@ class MilpDataset(torch.utils.data.Dataset):
                 edge_indices=instance_description_pkl.edge_features.indices,
                 edge_values=instance_description_pkl.edge_features.values,
             )
-        return instance_data, config_arr, primal_dual_int
+        return instance_data, config_arr, primal_dual_int_standarized
 
 
 class TestDataset(unittest.TestCase):

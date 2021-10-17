@@ -37,7 +37,6 @@ class MilpGNNTrainable(pl.LightningModule):
         n_gnn_layers,
         gnn_hidden_dim,
         ensemble_size,
-        scale_labels=True,
         only_one_config=False,
     ):
         super().__init__()
@@ -65,8 +64,6 @@ class MilpGNNTrainable(pl.LightningModule):
         instance_batch.edge_attr.requires_grad_(True)
         config_batch.requires_grad_(True)
 
-        if self.hparams.scale_labels:
-            label_batch = (label_batch - self.mu) / self.sig
         label_batch = label_batch.unsqueeze(axis=2)  # (B, 1, 1)
 
         pred = self.forward((instance_batch, config_batch))[0]
@@ -92,8 +89,6 @@ class MilpGNNTrainable(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         instance_batch, config_batch, label_batch = batch
-        if self.hparams.scale_labels:
-            label_batch = (label_batch - self.mu) / self.sig
 
         _pred, mean_mu, mean_var, epi_var = self.forward((instance_batch, config_batch))
         nll_loss = F.gaussian_nll_loss(mean_mu, label_batch, mean_var)
@@ -191,11 +186,6 @@ def main():
         pin_memory=torch.cuda.is_available() and not dry,
     )
     # TODO clean this up
-    mu, sig = (
-        data_train.dataset.csv_data_full.time_limit_primal_dual_integral.mean(),
-        data_train.dataset.csv_data_full.time_limit_primal_dual_integral.std(),
-    )
-    model.mu, model.sig = mu, sig
 
     trainer = Trainer(
         max_epochs=1000,
