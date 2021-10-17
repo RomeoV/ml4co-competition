@@ -137,7 +137,7 @@ def main():
     dry = subprocess.run(['hostname'], capture_output=True).stdout.decode()[:3] != "eu-"
 
     model = MilpGNNTrainable(
-        config_dim=3,
+        config_dim=4,
         optimizer="RMSprop",
         initial_lr=5e-4,
         batch_size=64 if not dry else 4,
@@ -165,7 +165,7 @@ def main():
         num_workers=8 if not dry else 0,
         pin_memory=torch.cuda.is_available() and not dry,
     )
-    configs_in_dataset = data_train.dataset.csv_data.loc[:, ["presolve_config_encoding", "heuristic_config_encoding", "separating_config_encoding"]].apply(tuple, axis=1).unique()
+    configs_in_dataset = data_train.dataset.csv_data.loc[:, ["presolve_config_encoding", "heuristic_config_encoding", "separating_config_encoding", "emphasis_config_encoding"]].apply(tuple, axis=1).unique()
 
     data_valid = DataLoader(
         MilpDataset(

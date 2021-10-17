@@ -61,12 +61,13 @@ class MilpDataset(torch.utils.data.Dataset):
             ].reset_index(drop=True)
 
         if only_one_config:
-            presolve_setting, heuristic_setting, separating_setting = only_one_config
+            presolve_setting, heuristic_setting, separating_setting, emphasis_setting = only_one_config
             df = self.csv_data_full
             df = df[
                 (df.presolve_config_encoding == presolve_setting)
                 & (df.heuristic_config_encoding == heuristic_setting)
                 & (df.separating_config_encoding == separating_setting)
+                & (df.emphasis_config_encoding == separating_setting)
             ].reset_index(drop=True)
             self.csv_data_full = df
 
@@ -115,6 +116,7 @@ class MilpDataset(torch.utils.data.Dataset):
                 "presolve_config_encoding",
                 "heuristic_config_encoding",
                 "separating_config_encoding",
+                "emphasis_config_encoding",
             ]
         else:
             raise "Unsupported data format"

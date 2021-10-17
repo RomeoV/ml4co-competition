@@ -22,10 +22,10 @@ class EvaluatePredictedParametersCallback(pytorch_lightning.callbacks.Callback):
             all_config_inputs = torch.stack(
                 [
                     torch.tensor(
-                        [a, b, c],
+                        [a, b, c, d],
                         dtype=torch.float32,
                     )
-                    for (a, b, c) in self.configs
+                    for (a, b, c, d) in self.configs
                 ],
                 axis=0,
             ).to(device)
@@ -44,7 +44,7 @@ class EvaluatePredictedParametersCallback(pytorch_lightning.callbacks.Callback):
             best_config_id["pessimistic"] = (mean_mu + mean_var.sqrt()).argmin()
 
             best_config = {
-                k: all_config_inputs[v, 0:3].to(torch.int32)
+                k: all_config_inputs[v, 0:4].to(torch.int32)
                 for k, v in best_config_id.items()
             }
 
@@ -56,6 +56,7 @@ class EvaluatePredictedParametersCallback(pytorch_lightning.callbacks.Callback):
                 & (df.presolve_config_encoding == int(config[0]))
                 & (df.heuristic_config_encoding == int(config[1]))
                 & (df.separating_config_encoding == int(config[2]))
+                & (df.emphasis_config_encoding == int(config[3]))
             ].time_limit_primal_dual_integral.median()
 
             percentile = scipy.stats.percentileofscore(
