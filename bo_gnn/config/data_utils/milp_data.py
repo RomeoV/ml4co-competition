@@ -12,8 +12,6 @@ class MilpBipartiteData(Data):
         cstr_feats,
         edge_indices,
         edge_values,
-        label=None,
-        batch_el=None,
     ):
         super(MilpBipartiteData, self).__init__()
         self.var_feats = torch.tensor(var_feats, dtype=torch.float32)
@@ -22,15 +20,23 @@ class MilpBipartiteData(Data):
         self.edge_attr = torch.tensor(edge_values, dtype=torch.float32)  # .unsqueeze(1)
         # self.y = torch.tensor([label], dtype=torch.float32)
         self.num_nodes = self.var_feats.shape[1] + self.cstr_feats.shape[1]
-        if batch_el is None:
-            self.batch_el = torch.zeros((self.var_feats.shape[-2]), dtype=torch.long)
-        else:
-            self.batch_el = batch_el
+        self.var_batch_el = torch.zeros((self.var_feats.shape[0]), dtype=torch.long)
+        self.cstr_batch_el = torch.zeros((self.cstr_feats.shape[0]), dtype=torch.long)
+
+    def pin_memory(self):
+        self.var_feats = self.var_feats.pin_memory()
+        self.cstr_feats = self.cstr_feats.pin_memory()
+        self.edge_attr = self.edge_attr.pin_memory()
+        self.edge_index = self.edge_index.pin_memory()
+        self.var_batch_el = self.var_batch_el.pin_memory()
+        self.cstr_batch_el = self.cstr_batch_el.pin_memory()
 
     def __inc__(self, key, value):
         if key == "edge_index":
             return torch.tensor([[self.cstr_feats.size(0)], [self.var_feats.size(0)]])
-        elif key == "batch_el":
+        elif key == "var_batch_el":
+            return torch.tensor([1], dtype=torch.long)
+        elif key == "cstr_batch_el":
             return torch.tensor([1], dtype=torch.long)
         else:
             return super().__inc__(key, value)
