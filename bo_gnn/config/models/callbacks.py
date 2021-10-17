@@ -81,7 +81,7 @@ class EvaluatePredictedParametersCallback(pytorch_lightning.callbacks.Callback):
                 )
             return instance_data
 
-        percentiles = {"mean": [], "optimistic": [], "pessimistic": [], "default": []}
+        percentiles = {"mean": [], "optimistic": [], "pessimistic": []}
         val_data_df = trainer.val_dataloaders[0].dataset.csv_data_full
 
         for instance in val_data_df.instance_file.unique():
@@ -92,11 +92,6 @@ class EvaluatePredictedParametersCallback(pytorch_lightning.callbacks.Callback):
 
             for k, v in best_configs.items():
                 percentiles[k].append(percentile_of_config(v, instance, val_data_df))
-
-            percentile_of_default = percentile_of_config(
-                np.array([1, 1, 1]), instance, val_data_df
-            )
-            percentiles["default"].append(percentile_of_default)
 
         percentile_means = {
             f"{k}_pred_percentile": torch.tensor(v).mean()
