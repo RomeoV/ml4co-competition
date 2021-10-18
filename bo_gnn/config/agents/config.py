@@ -1,5 +1,5 @@
 import os
-from typing import Dict
+from typing import Any, Dict
 import sys
 
 sys.path.insert(0,'..')
@@ -15,7 +15,6 @@ from data_utils.milp_data import MilpBipartiteData
 
 CHECKPOINT_BASE_PATH = "trained_model_checkpoints/"
 PARAMETER_CONFIGURATIONS_PATH = "param_configurations/"
-TIMEOUT = 900
 
 class ObservationFunction(MilpBipartite):
 
@@ -35,10 +34,7 @@ class ObservationFunction(MilpBipartite):
         pass
 
     def extract(self, model, done):
-        instance_graph = super(ObservationFunction, self).extract(model, done)
-
-        # TODO: remove primal and dual bounds
-        return (instance_graph, (model.primal_bound, model.dual_bound))
+        return super(ObservationFunction, self).extract(model, done)
 
 class Policy():
 
@@ -56,7 +52,7 @@ class Policy():
         pl.seed_everything(seed)
 
     def __call__(self, action_set, observation):
-        graph, (primal_bound, dual_bound) = observation
+        graph = observation
 
         instance_data = MilpBipartiteData(
             var_feats=graph.variable_features,
@@ -65,7 +61,7 @@ class Policy():
             edge_values=graph.edge_features.values,
         )
 
-        config_batch = self._generate_config_data(TIMEOUT, primal_bound, dual_bound)
+        config_batch = self._generate_config_data()
         instance_batch = Batch.from_data_list([instance_data],)
 
         predictions, mean_mu, mean_var, epi_var = self.performance_prediction_model((instance_batch, config_batch),
@@ -74,26 +70,29 @@ class Policy():
         lowest_mean_index = int(torch.argmin(mean_mu))
         return self._get_scip_parameter_configuration_by(lowest_mean_index)
 
-    def _generate_config_data(self, timeout: float, primal_bound: float, dual_bound: float) -> Tensor:
-        presolve_config_options = torch.tensor([0, 1, 2, 3])
-        heuristic_config_options = torch.tensor([0, 1, 2, 3])
-        separating_config_options = torch.tensor([0, 1, 2, 3])
-        parameter_encodings = torch.cartesian_prod(presolve_config_options,
+    def _generate_config_data(self) -> Tensor:
+        presolve_config_options = torch.tensor([0., 1., 2., 3.])
+        heuristic_config_options = torch.tensor([0., 1., 2., 3.])
+        separating_config_options = torch.tensor([0., 1., 2., 3.])
+        return torch.cartesian_prod(presolve_config_options,
                                                    heuristic_config_options,
                                                    separating_config_options)
-        config_data = torch.zeros(parameter_encodings.shape[0], 6)
-        config_data[:, :3] = parameter_encodings
-        config_data[:, 3] = timeout
-        config_data[:, 4] = primal_bound
-        config_data[:, 5] = dual_bound
-        return config_data
 
-    def _get_scip_parameter_configuration_by(self, index: int) -> Dict[str, float]:
+    def _get_scip_parameter_configuration_by(self, index: int) -> Dict[str, Any]:
         path = PARAMETER_CONFIGURATIONS_PATH + "config-" + str(index) + ".set"
 
         parameter_configuration = {}
         with open(path, "r") as parameter_file:
             for setting in parameter_file.readlines():
                 param_key, param_value = setting.split(" = ")
-                parameter_configuration[param_key] = float(param_value)
+                try:
+                    parameter_configuration[param_key] = float(param_value)
+                except ValueError:
+                    if "TRUE" in param_value:
+                        parameter_configuration[param_key] = True
+                    elif "FALSE" in param_value:
+                        parameter_configuration[param_key] = False
+                    else:
+                        raise RuntimeWarning("Unexpected parameter type.")
+
         return parameter_configuration
