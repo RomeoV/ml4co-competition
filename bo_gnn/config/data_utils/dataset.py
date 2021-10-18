@@ -11,6 +11,7 @@ from typing import Tuple, Union
 
 import torch
 import torch_geometric as tg
+from tqdm import tqdm
 
 from data_utils.milp_data import MilpBipartiteData
 
@@ -88,6 +89,22 @@ class MilpDataset(torch.utils.data.Dataset):
                 f"../../instances/{problem.value}/{folder.value}"
             )
 
+        self.instance_graphs = {}
+        for index, row in tqdm(self.csv_data_full.iterrows(), total=self.csv_data_full.shape[0]):
+            instance_file = row["instance_file"]
+            if instance_file not in self.instance_graphs:
+                with open(
+                        os.path.join(self.instance_path, instance_file.replace(".mps.gz", ".pkl")),
+                        "rb",
+                ) as infile:
+                    instance_description_pkl = pickle.load(infile)
+                    self.instance_graphs[instance_file] = MilpBipartiteData(
+                        var_feats=instance_description_pkl.variable_features,
+                        cstr_feats=instance_description_pkl.constraint_features,
+                        edge_indices=instance_description_pkl.edge_features.indices,
+                        edge_values=instance_description_pkl.edge_features.values,
+                    )
+
         if data_format is DataFormat.ROMEO:
             self.cols = [
                 "branching/clamp",
@@ -138,17 +155,7 @@ class MilpDataset(torch.utils.data.Dataset):
         mu, sig = self.data_mu.loc[instance_file][0], self.data_sig.loc[instance_file][0]
         primal_dual_int_standarized = torch.tensor([(primal_dual_int - mu) / sig], dtype=torch.float32)
         config_arr = torch.tensor(self.csv_data.loc[idx], dtype=torch.float32)
-        with open(
-            os.path.join(self.instance_path, instance_file.replace(".mps.gz", ".pkl")),
-            "rb",
-        ) as infile:
-            instance_description_pkl = pickle.load(infile)
-            instance_data = MilpBipartiteData(
-                var_feats=instance_description_pkl.variable_features,
-                cstr_feats=instance_description_pkl.constraint_features,
-                edge_indices=instance_description_pkl.edge_features.indices,
-                edge_values=instance_description_pkl.edge_features.values,
-            )
+        instance_data = self.instance_graphs[instance_file]
         return instance_data, config_arr, primal_dual_int_standarized
 
 
