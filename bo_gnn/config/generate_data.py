@@ -105,6 +105,7 @@ def parse_args():
     )
 
     parser.add_argument("-d", "--dry_run", help="Dry run.", action="store_true")
+    parser.add_argument("--fixed_seed", help="Fix the random seeds.", action="store_true")
     args = parser.parse_args()
     return args
 
@@ -125,7 +126,8 @@ def main():
         number_of_random_seeds=args.number_of_random_seeds,
         k_best_config_ids_from=args.k_best_config_ids_from,
         k_best_config_ids_to=args.k_best_config_ids_to,
-        run_selected_instances=args.run_selected_instances
+        run_selected_instances=args.run_selected_instances,
+	fixed_seed=args.fixed_seed
     )
 
 
@@ -142,7 +144,8 @@ def solve_instances_and_periodically_write_to_file(
     number_of_random_seeds: int = 1,
     k_best_config_ids_from: Optional[int] = None,
     k_best_config_ids_to: Optional[int] = None,
-    run_selected_instances: bool=False
+    run_selected_instances: bool=False,
+    fixed_seed: bool=False
 ):
     instance_path = pathlib.Path(f"{path_to_instances}/{task_name}/{folder}")
 
@@ -180,13 +183,13 @@ def solve_instances_and_periodically_write_to_file(
         for instance in instance_paths:
             number_of_configs = len(selected_config_ids)
             all_instances += [instance] * number_of_configs * number_of_random_seeds
-            all_actions += [{'config_id': config_id, 'random_seed': np.random.randint(100000)} for config_id, random_seed in
+            all_actions += [{'config_id': config_id, 'random_seed': random_seed if fixed_seed else np.random.randint(100000)} for config_id, random_seed in
                             itertools.product(selected_config_ids, range(number_of_random_seeds))]
     else:
         for instance in instance_paths:
             number_of_configs = total_number_of_configs
             all_instances += [instance] * number_of_configs * number_of_random_seeds
-            all_actions += [{'config_id': config_id, 'random_seed': np.random.randint(100000)} for config_id, random_seed in
+            all_actions += [{'config_id': config_id, 'random_seed': random_seed if fixed_seed else np.random.randint(100000)} for config_id, random_seed in
                             itertools.product(range(number_of_configs), range(number_of_random_seeds))]
 
     print("Running every instance with {} configs".format(number_of_configs))
