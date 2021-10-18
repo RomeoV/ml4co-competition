@@ -45,6 +45,9 @@ class Policy():
         assert len(files_in_checkpoint_dir) == 1
         model_path = CHECKPOINT_BASE_PATH + problem + "/" + files_in_checkpoint_dir[0]
         self.performance_prediction_model = MilpGNNTrainable.load_from_checkpoint(model_path)
+        self.performance_prediction_model.eval()
+        if torch.cuda.is_available():
+            self.performance_prediction_model.to(torch.device("cuda"))
 
     def seed(self, seed):
         # called before each episode
@@ -52,6 +55,8 @@ class Policy():
         pl.seed_everything(seed)
 
     def __call__(self, action_set, observation):
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
         graph = observation
 
         instance_data = MilpBipartiteData(
@@ -61,8 +66,8 @@ class Policy():
             edge_values=graph.edge_features.values,
         )
 
-        config_batch = self._generate_config_data()
-        instance_batch = Batch.from_data_list([instance_data],)
+        config_batch = self._generate_config_data().to(device)
+        instance_batch = Batch.from_data_list([instance_data],).to(device)
 
         predictions, mean_mu, mean_var, epi_var = self.performance_prediction_model((instance_batch, config_batch),
                                                                                     single_instance=True)
