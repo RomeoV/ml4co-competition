@@ -36,6 +36,16 @@ EMPHASIS_SETTINGS = OrderedDict({
 'SCIP_PARAMEMPHASIS_NUMERICS' : pyopt.SCIP_PARAMEMPHASIS.NUMERICS
 })
 
+# COUNTER = 6
+# CPSOLVER = 1
+# DEFAULT = 0
+# EASYCIP = 2
+# FEASIBILITY = 3
+# HARDLP = 4
+# OPTIMALITY = 5
+# PHASEFEAS = 7
+# PHASEIMPROVE = 8
+# PHASEPROOF = 9
 
 
 def main():
@@ -68,7 +78,6 @@ def create_emphasis_configs(config_id_to_parameter_setting):
     number_of_meta_parameters_to_set = 3
     for i, setting in enumerate(itertools.product(SETTINGS.items(), repeat=number_of_meta_parameters_to_set)):
         presolve, heuristic, separating = setting
-        overall_index += 1
         print(f'Config {overall_index} \n \
                     emphasis: {emphasis_parameter_index} \n \
                     presolve: {presolve[0]} \n \
@@ -81,10 +90,10 @@ def create_emphasis_configs(config_id_to_parameter_setting):
                        heuristic_parameter=heuristic[1],
                        separating_paramter=separating[1],
                        emphasis_parameter=emphasis_parameter)
+        overall_index += 1
 
     emphasis_parameter_index = "SCIP_PARAMEMPHASIS_EASYCIP"
     emphasis_parameter = EMPHASIS_SETTINGS[emphasis_parameter_index]
-    overall_index += 1
     print(f'Config {overall_index} \n \
                 emphasis: {emphasis_parameter_index} \n')
     config_id_to_parameter_setting[overall_index] = [3, 3, 3, emphasis_parameter]
@@ -94,13 +103,14 @@ def create_emphasis_configs(config_id_to_parameter_setting):
                    heuristic_parameter=None,
                    separating_paramter=None,
                    emphasis_parameter=emphasis_parameter)
+    overall_index += 1
+
 
     emphasis_parameter_index = "SCIP_PARAMEMPHASIS_FEASIBILITY"
     emphasis_parameter = EMPHASIS_SETTINGS[emphasis_parameter_index]
     number_of_meta_parameters_to_set = 1
     for i, setting in enumerate(itertools.product(SETTINGS.items(), repeat=number_of_meta_parameters_to_set)):
         presolve = setting[0]
-        overall_index += 1
         print(f'Config {overall_index} \n \
                       emphasis: {emphasis_parameter_index} \n \
                       presolve: {presolve[0]} \n')
@@ -111,13 +121,14 @@ def create_emphasis_configs(config_id_to_parameter_setting):
                        heuristic_parameter=None,
                        separating_paramter=None,
                        emphasis_parameter=emphasis_parameter)
+        overall_index += 1
+
 
     emphasis_parameter_index = "SCIP_PARAMEMPHASIS_HARDLP"
     emphasis_parameter = EMPHASIS_SETTINGS[emphasis_parameter_index]
     number_of_meta_parameters_to_set = 1
     for i, setting in enumerate(itertools.product(SETTINGS.items(), repeat=number_of_meta_parameters_to_set)):
         separating = setting[0]
-        overall_index += 1
         print(f'Config {overall_index} \n \
                           emphasis: {emphasis_parameter_index} \n \
                           separating: {separating[0]} \n')
@@ -128,6 +139,8 @@ def create_emphasis_configs(config_id_to_parameter_setting):
                        heuristic_parameter=None,
                        separating_paramter=separating[1],
                        emphasis_parameter=emphasis_parameter)
+        overall_index += 1
+
 
 
     emphasis_parameter_index = "SCIP_PARAMEMPHASIS_OPTIMALITY"
@@ -135,7 +148,6 @@ def create_emphasis_configs(config_id_to_parameter_setting):
     number_of_meta_parameters_to_set = 2
     for i, setting in enumerate(itertools.product(SETTINGS.items(), repeat=number_of_meta_parameters_to_set)):
         presolve, heuristic = setting
-        overall_index += 1
         print(f'Config {overall_index} \n \
                           emphasis: {emphasis_parameter_index} \n \
                           presolve: {presolve[0]} \n \
@@ -147,13 +159,14 @@ def create_emphasis_configs(config_id_to_parameter_setting):
                        heuristic_parameter=heuristic[1],
                        separating_paramter=None,
                        emphasis_parameter=emphasis_parameter)
+        overall_index += 1
+
 
     emphasis_parameter_index = "SCIP_PARAMEMPHASIS_COUNTER"
     emphasis_parameter = EMPHASIS_SETTINGS[emphasis_parameter_index]
     number_of_meta_parameters_to_set = 1
     for i, setting in enumerate(itertools.product(SETTINGS.items(), repeat=number_of_meta_parameters_to_set)):
         presolve = setting[0]
-        overall_index += 1
         print(f'Config {overall_index} \n \
                           emphasis: {emphasis_parameter_index} \n \
                           presolve: {presolve[0]} \n')
@@ -164,13 +177,14 @@ def create_emphasis_configs(config_id_to_parameter_setting):
                        heuristic_parameter=None,
                        separating_paramter=None,
                        emphasis_parameter=emphasis_parameter)
+        overall_index += 1
+
 
     emphasis_parameter_index = "SCIP_PARAMEMPHASIS_PHASEFEAS"
     emphasis_parameter = EMPHASIS_SETTINGS[emphasis_parameter_index]
     number_of_meta_parameters_to_set = 3
     for i, setting in enumerate(itertools.product(SETTINGS.items(), repeat=number_of_meta_parameters_to_set)):
         presolve, heuristic, separating = setting
-        overall_index += 1
         print(f'Config {overall_index} \n \
                     emphasis: {emphasis_parameter_index} \n \
                     presolve: {presolve[0]} \n \
@@ -183,13 +197,13 @@ def create_emphasis_configs(config_id_to_parameter_setting):
                        heuristic_parameter=heuristic[1],
                        separating_paramter=separating[1],
                        emphasis_parameter=emphasis_parameter)
+        overall_index += 1
 
     emphasis_parameter_index = "SCIP_PARAMEMPHASIS_PHASEIMPROVE"
     emphasis_parameter = EMPHASIS_SETTINGS[emphasis_parameter_index]
     number_of_meta_parameters_to_set = 3
     for i, setting in enumerate(itertools.product(SETTINGS.items(), repeat=number_of_meta_parameters_to_set)):
         presolve, heuristic, separating = setting
-        overall_index += 1
         print(f'Config {overall_index} \n \
                     emphasis: {emphasis_parameter_index} \n \
                     presolve: {presolve[0]} \n \
@@ -202,13 +216,13 @@ def create_emphasis_configs(config_id_to_parameter_setting):
                        heuristic_parameter=heuristic[1],
                        separating_paramter=separating[1],
                        emphasis_parameter=emphasis_parameter)
+        overall_index += 1
 
     emphasis_parameter_index = "SCIP_PARAMEMPHASIS_PHASEPROOF"
     emphasis_parameter = EMPHASIS_SETTINGS[emphasis_parameter_index]
     number_of_meta_parameters_to_set = 1
     for i, setting in enumerate(itertools.product(SETTINGS.items(), repeat=number_of_meta_parameters_to_set)):
         presolve = setting[0]
-        overall_index += 1
         print(f'Config {overall_index} \n \
                          emphasis: {emphasis_parameter_index} \n \
                          presolve: {presolve[0]} \n')
@@ -219,13 +233,13 @@ def create_emphasis_configs(config_id_to_parameter_setting):
                        heuristic_parameter=None,
                        separating_paramter=None,
                        emphasis_parameter=emphasis_parameter)
+        overall_index += 1
 
     emphasis_parameter_index = "SCIP_PARAMEMPHASIS_NUMERICS"
     emphasis_parameter = EMPHASIS_SETTINGS[emphasis_parameter_index]
     number_of_meta_parameters_to_set = 3
     for i, setting in enumerate(itertools.product(SETTINGS.items(), repeat=number_of_meta_parameters_to_set)):
         presolve, heuristic, separating = setting
-        overall_index += 1
         print(f'Config {overall_index} \n \
                     emphasis: {emphasis_parameter_index} \n \
                     presolve: {presolve[0]} \n \
@@ -238,7 +252,7 @@ def create_emphasis_configs(config_id_to_parameter_setting):
                        heuristic_parameter=heuristic[1],
                        separating_paramter=separating[1],
                        emphasis_parameter=emphasis_parameter)
-
+        overall_index += 1
 
 
 def set_parameters(index, presolve_parameter=None, heuristic_parameter=None, separating_paramter=None, emphasis_parameter=None,):

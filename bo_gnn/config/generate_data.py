@@ -1,5 +1,4 @@
 import random
-import time
 import sys
 import pyscipopt as pyopt
 import joblib as jl
@@ -10,22 +9,15 @@ import argparse
 import tempfile
 import subprocess
 import itertools
+import numpy as np
 
 from filelock import FileLock
-import ecole
 import pathlib
 import json
-import ecole as ec
-import numpy as np
-from typing import List, Dict, Callable
-import ConfigSpace as CS
+
+from typing import List, Dict, Optional
 
 sys.path.append("../../common")
-from environments import Configuring
-
-from environments import Configuring as Environment
-from rewards import TimeLimitPrimalDualIntegral
-from config_utils import sampleActions, getParamsFromFile
 
 
 def parse_args():
@@ -91,13 +83,33 @@ def parse_args():
         default=1,
         type=int,
     )
+    parser.add_argument(
+        "-k",
+        "--k_best_config_ids_from",
+        help="Indicate the beginning of the range of the k best configs to run. Note this parameter can be set on its own.",
+        type=int,
+    )
+
+    parser.add_argument(
+        "-l",
+        "--k_best_config_ids_to",
+        help="Indicate the end of the range of the k best configs to run. Note this parameter can only be set in combination with k_best_config_ids_from",
+        type=int,
+    )
+
+    parser.add_argument(
+        "--run_selected_instances",
+        help="If true then run specific instances that are defined in data_utils/{task}_instance_and_id_specification.json",
+        dest="run_selected_instances",
+        action='store_true'
+    )
 
     parser.add_argument("-d", "--dry_run", help="Dry run.", action="store_true")
-
+    parser.add_argument("--fixed_seed", help="Fix the random seeds.", action="store_true")
     args = parser.parse_args()
     return args
 
-number_of_configs = 353
+total_number_of_configs = 352
 
 def main():
     args = parse_args()
@@ -111,7 +123,11 @@ def main():
         start_instance_number=args.start_instance_number,
         end_instance_number=args.end_instance_number,
         task_name=args.task_name,
-        number_of_random_seeds=args.number_of_random_seeds
+        number_of_random_seeds=args.number_of_random_seeds,
+        k_best_config_ids_from=args.k_best_config_ids_from,
+        k_best_config_ids_to=args.k_best_config_ids_to,
+        run_selected_instances=args.run_selected_instances,
+	fixed_seed=args.fixed_seed
     )
 
 
@@ -126,19 +142,57 @@ def solve_instances_and_periodically_write_to_file(
     dry_run=True,
     task_name: str = "1_item_placement",
     number_of_random_seeds: int = 1,
+    k_best_config_ids_from: Optional[int] = None,
+    k_best_config_ids_to: Optional[int] = None,
+    run_selected_instances: bool=False,
+    fixed_seed: bool=False
 ):
     instance_path = pathlib.Path(f"{path_to_instances}/{task_name}/{folder}")
-    instance_paths = [os.path.join(instance_path, f"{task_name[2:]}_{instance_id}.mps.gz") for instance_id in range(start_instance_number, end_instance_number)]
+
+    if run_selected_instances:
+        with open("data_utils/{}_instance_and_id_specification.json".format(task_name), "r") as file:
+            instances_to_run = json.load(file)["selected_instances"]
+        assert len(instances_to_run) > 0, len(instances_to_run)
+        instance_paths = [os.path.join(instance_path, f"{task_name[2:]}_{instance_id}.mps.gz") for instance_id in
+                         instances_to_run]
+    else:
+        instance_paths = [os.path.join(instance_path, f"{task_name[2:]}_{instance_id}.mps.gz") for instance_id in range(start_instance_number, end_instance_number)]
 
 
     number_of_instances = end_instance_number - start_instance_number
 
     all_instances = []
     all_actions = []
-    for instance in instance_paths:
-        all_instances += [instance] * number_of_configs*number_of_random_seeds
-        all_actions += [{'config_id': config_id, 'random_seed': random_seed} for config_id, random_seed in itertools.product(range(number_of_configs), range(number_of_random_seeds))]
+    if k_best_config_ids_from is not None:
+        with open("data_utils/{}_instance_and_id_specification.json".format(task_name), "r") as file:
+            selected_config_ids_from = json.load(file)["selected_config_ids"][str(k_best_config_ids_from)]
+            assert len(selected_config_ids_from) > 0
 
+    if k_best_config_ids_to is not None:
+        assert k_best_config_ids_from is not None
+        assert k_best_config_ids_from < k_best_config_ids_to
+        with open("data_utils/{}_instance_and_id_specification.json".format(task_name), "r") as file:
+            selected_config_ids_to = json.load(file)["selected_config_ids"][str(k_best_config_ids_to)]
+            assert len(selected_config_ids_to) > 0
+
+        selected_config_ids = [config_id for config_id in selected_config_ids_to if config_id not in selected_config_ids_from]
+    else:
+        selected_config_ids = selected_config_ids_from
+
+    if k_best_config_ids_from is not None:
+        for instance in instance_paths:
+            number_of_configs = len(selected_config_ids)
+            all_instances += [instance] * number_of_configs * number_of_random_seeds
+            all_actions += [{'config_id': config_id, 'random_seed': random_seed if fixed_seed else np.random.randint(100000)} for config_id, random_seed in
+                            itertools.product(selected_config_ids, range(number_of_random_seeds))]
+    else:
+        for instance in instance_paths:
+            number_of_configs = total_number_of_configs
+            all_instances += [instance] * number_of_configs * number_of_random_seeds
+            all_actions += [{'config_id': config_id, 'random_seed': random_seed if fixed_seed else np.random.randint(100000)} for config_id, random_seed in
+                            itertools.product(range(number_of_configs), range(number_of_random_seeds))]
+
+    print("Running every instance with {} configs".format(number_of_configs))
     assert len(all_instances) == len(all_actions)
 
     # Batch problems so that we can write to file after each batch.
@@ -165,15 +219,17 @@ def solve_instances_and_periodically_write_to_file(
 def solve_a_problem(
     instance_path: str, parameters: Dict[str,int], time_limit: int = 900, dry_run: bool = False,
 ):
+    config_id = parameters["config_id"]
+
     with open(instance_path.replace(".mps.gz", ".json")) as f:
         instance_info = json.load(f)
-
-    config_id = parameters["config_id"]
+    print("Running instance {}".format(instance_path))
 
     model = pyopt.Model()
     model.readProblem(instance_path)
     model.readParams(f"meta_configs/config-{config_id}.set")
     model.setParam("limits/time", time_limit)
+    model.setParam("limits/memory", 12*1024)
     model.setParam("randomization/randomseedshift", parameters["random_seed"])
 
     info = {}
@@ -185,6 +241,7 @@ def solve_a_problem(
 
 
     if not dry_run:
+        model.hideOutput()
         model.optimize()
 
         info.update(
@@ -193,6 +250,7 @@ def solve_a_problem(
                 "heuristic_config_encoding": config_ids_to_parameters[str(config_id)][1],
                 "separating_config_encoding": config_ids_to_parameters[str(config_id)][2],
                 "emphasis_config_encoding": config_ids_to_parameters[str(config_id)][3],
+                "config_id": config_id,
                 "instance_file": pathlib.PosixPath(instance_path).name,
                 "time_limit": time_limit,
                 "initial_primal_bound": instance_info["primal_bound"],
@@ -200,6 +258,17 @@ def solve_a_problem(
                 "time_limit_primal_dual_integral": model.getPrimalDualIntegral(),
             }
         )
+    info.update(
+        {
+            "presolve_config_encoding": config_ids_to_parameters[str(config_id)][0],
+            "heuristic_config_encoding": config_ids_to_parameters[str(config_id)][1],
+            "separating_config_encoding": config_ids_to_parameters[str(config_id)][2],
+            "emphasis_config_encoding": config_ids_to_parameters[str(config_id)][3],
+            "config_id": config_id,
+            "instance_file": pathlib.PosixPath(instance_path).name,
+            "time_limit": time_limit,
+        }
+    )
     return info
 
 

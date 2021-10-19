@@ -14,11 +14,7 @@ bsub -n 4 -W 4:00 -R singularity -R "rusage[ngpus_excl_p=1,mem=4096]" singularit
 
 Alternatively you can also run this locally, although it's still easier to install singularity or docker and then run it through that. The dockerfile can be obtained as `docker pull romeov/ml4co-gpu`.
 
-# Getting the data
-The necessary data files for the first problem are shared on slack. The pickle files for the first 101 instances is 1.5GB, so I can upload that later to google drive or something.
-The pickle files for all the instances fill be around 30GB.
-
-# Run instances with hyperparameters 
+# Create Dataset by runnning instances with hyperparameters 
 First of all you need to create the configs: 
 ```
 python scripts/create_meta_configs.py
@@ -28,3 +24,16 @@ Then you can create data with
 ```
 python generate_data.py -h
 ```
+
+If you want to create the dataset on euler, then you can run 
+
+```
+python scripts/create_run_dataset_bash_script.py.py -h
+```
+
+This will create a bash file to submit jobs to euler in an automated fashion. 
+
+# Getting the data
+The necessary data files for the first problem are shared on slack. The pickle files for the first 101 instances is 1.5GB, so I can upload that later to google drive or something.
+The pickle files for all the instances fill be around 30GB.
+
