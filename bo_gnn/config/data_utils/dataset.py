@@ -135,7 +135,7 @@ class MilpDataset(torch.utils.data.Dataset):
         self.csv_data = self.csv_data_full[self.cols]
         self.csv_data_full["config_encoding"] = self.csv_data.loc[:, self.cols].apply(tuple, axis=1)
         self.csv_data_full["instance_num"] = self.csv_data_full.instance_file.str.extract(".*_([0-9]+)").astype(int)
-        self.csv_data_fast.self.csv_data_full[
+        self.csv_data_fast = self.csv_data_full[
             ["instance_num", "config_encoding", "time_limit_primal_dual_integral"]
         ].set_index("instance_num")
 
