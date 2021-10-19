@@ -17,7 +17,7 @@ class EvaluatePredictedParametersCallback(pytorch_lightning.callbacks.Callback):
         self.instance_dir = pathlib.Path(instance_dir)
 
     def on_train_epoch_start(self, trainer, pl_module):
-        def find_best_configs(pl_module, instance):
+        def find_best_config(pl_module, instance):
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
             instance_batch = Batch.from_data_list([instance]).to(device)
 
@@ -34,9 +34,10 @@ class EvaluatePredictedParametersCallback(pytorch_lightning.callbacks.Callback):
 
             return best_config
 
-        def percentile_of_config(config, instance, df):
+        def percentile_of_config(config, instance, dataset):
+            df = dataset.csv_data_full
             pred_with_config = df[
-                (df.instance_file == instance)
+                (df.instance_num == instance)
                 & (df.presolve_config_encoding == int(config[0]))
                 & (df.heuristic_config_encoding == int(config[1]))
                 & (df.separating_config_encoding == int(config[2]))
@@ -44,38 +45,20 @@ class EvaluatePredictedParametersCallback(pytorch_lightning.callbacks.Callback):
             ].time_limit_primal_dual_integral.median()
 
             percentile = scipy.stats.percentileofscore(
-                df[df.instance_file == instance].time_limit_primal_dual_integral,
+                df[df.instance_num == instance].time_limit_primal_dual_integral,
                 pred_with_config,
             )
 
             return percentile
 
-        def get_instance_data(instance_file):
-            # TODO clean this up
-            with open(
-                os.path.join(self.instance_dir, instance_file.replace(".mps.gz", ".pkl")),
-                "rb",
-            ) as infile:
-                instance_description_pkl = pickle.load(infile)
-                instance_data = MilpBipartiteData(
-                    var_feats=instance_description_pkl.variable_features,
-                    cstr_feats=instance_description_pkl.constraint_features,
-                    edge_indices=instance_description_pkl.edge_features.indices,
-                    edge_values=instance_description_pkl.edge_features.values,
-                )
-            return instance_data
-
         percentiles = {"mean": [], "opti": [], "pess": []}
-        val_data_df = trainer.val_dataloaders[0].dataset.csv_data_full
+        val_dataset = trainer.val_dataloaders[0].dataset
 
-        for instance in val_data_df.instance_file.unique():
-            best_configs = find_best_configs(
-                pl_module,
-                get_instance_data(instance),
-            )
+        for instance_num in val_dataset.unique_instance_nums:
+            best_configs = find_best_config(pl_module, val_dataset.instance_graphs[instance_num])
 
             for k, v in best_configs.items():
-                percentiles[k].append(percentile_of_config(v, instance, val_data_df))
+                percentiles[k].append(percentile_of_config(v, instance_num, val_dataset))
 
         percentile_means = {f"{k}_perc": torch.tensor(v).mean() for k, v in percentiles.items()}
         self.log_dict(percentile_means, prog_bar=True)

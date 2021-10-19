@@ -203,8 +203,9 @@ def main():
         problem=problem,
     )
 
+    profiler = pl.profiler.AdvancedProfiler(filename="profiler_out")
     trainer = Trainer(
-        max_epochs=1000,
+        max_epochs=10,
         gpus=1 if torch.cuda.is_available() else 0,
         callbacks=[
             EvaluatePredictedParametersCallback(
@@ -213,6 +214,7 @@ def main():
             ),
             pytorch_lightning.callbacks.LearningRateMonitor(logging_interval="epoch"),
         ],
+        profiler=profiler,
     )
     trainer.fit(model, train_dataloaders=data_train, val_dataloaders=data_valid)
 

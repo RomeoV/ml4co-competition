@@ -7,6 +7,7 @@ import numpy as np
 import os
 import pickle
 import enum
+import re
 from typing import Tuple, Union
 
 import torch
@@ -90,7 +91,8 @@ class MilpDataset(torch.utils.data.Dataset):
                 "rb",
             ) as infile:
                 instance_description_pkl = pickle.load(infile)
-                self.instance_graphs[instance_file] = MilpBipartiteData(
+                instance_num = int(re.match(".*_([0-9]+).mps.gz", instance_file).group(1))
+                self.instance_graphs[instance_num] = MilpBipartiteData(
                     var_feats=instance_description_pkl.variable_features,
                     cstr_feats=instance_description_pkl.constraint_features,
                     edge_indices=instance_description_pkl.edge_features.indices,
@@ -132,26 +134,28 @@ class MilpDataset(torch.utils.data.Dataset):
 
         self.csv_data = self.csv_data_full[self.cols]
         self.csv_data_full["config_encoding"] = self.csv_data.loc[:, self.cols].apply(tuple, axis=1)
+        self.csv_data_full["instance_num"] = self.csv_data_full.instance_file.str.extract(".*_([0-9]+)").astype(int)
 
         # compute per-instance mu and sigma and normalize label by that
-        grouped_labels = self.csv_data_full.loc[:, ["instance_file", "time_limit_primal_dual_integral"]].groupby(
-            "instance_file"
+        grouped_labels = self.csv_data_full.loc[:, ["instance_num", "time_limit_primal_dual_integral"]].groupby(
+            "instance_num"
         )
         self.data_mu = grouped_labels.mean()
         self.data_sig = grouped_labels.std()
 
         self.unique_configs_in_dataset = self.csv_data_full.config_encoding.unique()
         self.unique_instance_files = self.csv_data_full.instance_file.unique()
+        self.unique_instance_nums = self.csv_data_full.instance_num.unique()
         self._last_index_dbg = None
 
     def __len__(self):
-        return self.unique_instance_files.size
+        return self.unique_instance_nums.size
 
     def __getitem__(self, idx):
-        instance_file = self.unique_instance_files[idx]
+        instance_num = self.unique_instance_nums[idx]
 
         primal_dual_int = (
-            self.csv_data_full[self.csv_data_full.instance_file == instance_file]
+            self.csv_data_full[self.csv_data_full.instance_num == instance_num]
             .groupby("config_encoding")
             .aggregate(np.random.choice)
             .time_limit_primal_dual_integral
@@ -164,12 +168,12 @@ class MilpDataset(torch.utils.data.Dataset):
         # DBG END
 
         mu, sig = (
-            self.data_mu.loc[instance_file][0],
-            self.data_sig.loc[instance_file][0],
+            self.data_mu.loc[instance_num][0],
+            self.data_sig.loc[instance_num][0],
         )
         primal_dual_int_standarized = torch.tensor((primal_dual_int - mu) / sig, dtype=torch.float32)
 
-        instance_data = self.instance_graphs[instance_file]
+        instance_data = self.instance_graphs[instance_num]
 
         return instance_data, primal_dual_int_standarized
 
