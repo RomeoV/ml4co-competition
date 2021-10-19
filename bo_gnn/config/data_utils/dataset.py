@@ -135,11 +135,12 @@ class MilpDataset(torch.utils.data.Dataset):
         self.csv_data = self.csv_data_full[self.cols]
         self.csv_data_full["config_encoding"] = self.csv_data.loc[:, self.cols].apply(tuple, axis=1)
         self.csv_data_full["instance_num"] = self.csv_data_full.instance_file.str.extract(".*_([0-9]+)").astype(int)
+        self.csv_data_fast.self.csv_data_full[
+            ["instance_num", "config_encoding", "time_limit_primal_dual_integral"]
+        ].set_index("instance_num")
 
         # compute per-instance mu and sigma and normalize label by that
-        grouped_labels = self.csv_data_full.loc[:, ["instance_num", "time_limit_primal_dual_integral"]].groupby(
-            "instance_num"
-        )
+        grouped_labels = self.csv_data_fast.groupby("instance_num")
         self.data_mu = grouped_labels.mean()
         self.data_sig = grouped_labels.std()
 
@@ -155,17 +156,11 @@ class MilpDataset(torch.utils.data.Dataset):
         instance_num = self.unique_instance_nums[idx]
 
         primal_dual_int = (
-            self.csv_data_full[self.csv_data_full.instance_num == instance_num]
+            self.csv_data_fast.loc[instance_num]
             .groupby("config_encoding")
             .aggregate(np.random.choice)
             .time_limit_primal_dual_integral
         )
-
-        # DBG
-        if self._last_index_dbg is not None:
-            assert (primal_dual_int.index == self._last_index_dbg).all()
-        self._last_index_dbg = primal_dual_int.index
-        # DBG END
 
         mu, sig = (
             self.data_mu.loc[instance_num][0],
