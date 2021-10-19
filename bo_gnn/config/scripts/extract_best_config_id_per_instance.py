@@ -16,4 +16,4 @@ if __name__ == "__main__":
         best_config_id_per_instance[instance] = best_config_id
 
     with open(save_path, "wb") as f:
-        pkl.dump(best_config_id, f)
+        pkl.dump(best_config_id_per_instance, f)
