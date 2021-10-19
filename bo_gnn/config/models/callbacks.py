@@ -65,7 +65,7 @@ class EvaluatePredictedParametersCallback(pytorch_lightning.callbacks.Callback):
                 )
             return instance_data
 
-        percentiles = {"mean": [], "optimistic": [], "pessimistic": []}
+        percentiles = {"mean": [], "opti": [], "pess": []}
         val_data_df = trainer.val_dataloaders[0].dataset.csv_data_full
 
         for instance in val_data_df.instance_file.unique():
