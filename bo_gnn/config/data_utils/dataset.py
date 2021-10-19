@@ -90,8 +90,7 @@ class MilpDataset(torch.utils.data.Dataset):
             )
 
         self.instance_graphs = {}
-        for index, row in tqdm(self.csv_data_full.iterrows(), total=self.csv_data_full.shape[0]):
-            instance_file = row["instance_file"]
+        for instance_file in tqdm(self.csv_data_full.instance_file.unique()):
             if instance_file not in self.instance_graphs:
                 with open(
                         os.path.join(self.instance_path, instance_file.replace(".mps.gz", ".pkl")),
