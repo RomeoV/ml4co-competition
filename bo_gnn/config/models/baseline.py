@@ -98,7 +98,7 @@ class GNNFwd(torch.nn.Module):
         additional_dense=False,
     ):
         super(GNNFwd, self).__init__()
-        self.Conv = tg.nn.GraphConv
+        self.Conv = tg.nn.TransformerConv
 
         self.additional_dense = additional_dense
         if additional_dense:
@@ -108,13 +108,20 @@ class GNNFwd(torch.nn.Module):
         self.node_gnn = self.Conv(
             in_channels=in_dim[::-1],
             out_channels=out_dim[0],
-            aggr="mean",
+            edge_dim=1,
+            heads=2,
+            concat=False,
+            dropout=0.1,
         )
         self.cstr_gnn = self.Conv(
             in_channels=in_dim,
             out_channels=out_dim[1],
-            aggr="mean",
+            edge_dim=1,
+            heads=2,
+            concat=False,
+            dropout=0.1,
         )
+
         self.batch_norm = batch_norm
         if self.batch_norm:
             self.node_batch_norm = tg.nn.BatchNorm(in_channels=in_dim[0])
@@ -138,11 +145,11 @@ class GNNFwd(torch.nn.Module):
 
         edge_attr = data.edge_attr.unsqueeze(-1)
 
-        x_node_ = self.node_gnn(x=(x_cstr, x_node), edge_index=data.edge_index, edge_weight=edge_attr)
+        x_node_ = self.node_gnn(x=(x_cstr, x_node), edge_index=data.edge_index, edge_attr=edge_attr)
         x_cstr_ = self.cstr_gnn(
             x=(x_node, x_cstr),
             edge_index=data.edge_index.flip(-2),
-            edge_weight=edge_attr,
+            edge_attr=edge_attr,
         )
 
         if self.residual:
