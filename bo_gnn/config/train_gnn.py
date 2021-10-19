@@ -37,38 +37,47 @@ class MilpGNNTrainable(pl.LightningModule):
         n_gnn_layers,
         gnn_hidden_dim,
         ensemble_size,
-        only_one_config=False,
     ):
         super().__init__()
         self.save_hyperparameters()
 
         self.model_ensemble = torch.nn.ModuleList(
-            [ConfigPerformanceRegressor(config_dim=config_dim, n_gnn_layers=n_gnn_layers, gnn_hidden_dim=gnn_hidden_dim) for i in range(ensemble_size)]
+            [
+                ConfigPerformanceRegressor(
+                    config_dim=config_dim,
+                    n_gnn_layers=n_gnn_layers,
+                    gnn_hidden_dim=gnn_hidden_dim,
+                )
+                for i in range(ensemble_size)
+            ]
         )
 
-    def forward(self, x, single_instance=False):
-        instance_batch, config_batch = x  # we have to clone those
+    def forward(self, instance_batch):
         predictions = torch.stack(
-            [model.forward((instance_batch.clone(), config_batch.clone()), single_instance=single_instance) for model in self.model_ensemble],
+            [
+                model.forward(
+                    instance_batch.clone(),
+                )
+                for model in self.model_ensemble
+            ],
             axis=1,
         )
-        mean_mu = predictions[:, :, 0:1].mean(axis=1)
-        mean_var = predictions[:, :, 1:2].mean(axis=1)
-        epi_var = (predictions[:, :, 0] - mean_mu).pow(2).mean(axis=1)
+        mean_mu = predictions[:, :, :, 0].mean(axis=1)
+        mean_var = predictions[:, :, :, 1].mean(axis=1)
+        epi_var = (predictions[:, :, :, 0] - mean_mu.unsqueeze(1)).pow(2).mean(axis=1)
         return predictions, mean_mu, mean_var, epi_var
 
     def training_step(self, batch, batch_idx):
-        instance_batch, config_batch, label_batch = batch
+        instance_batch, label_batch = batch
         instance_batch.cstr_feats.requires_grad_(True)
         instance_batch.var_feats.requires_grad_(True)
         instance_batch.edge_attr.requires_grad_(True)
-        config_batch.requires_grad_(True)
 
-        label_batch = label_batch.unsqueeze(axis=2)  # (B, 1, 1)
+        label_batch = label_batch.unsqueeze(axis=1)  # (B, 1, C)
 
-        pred = self.forward((instance_batch, config_batch))[0]
-        pred_mu = pred[:, :, 0:1]
-        pred_var = pred[:, :, 1:2]
+        pred = self.forward(instance_batch)[0]
+        pred_mu = pred[:, :, :, 0]
+        pred_var = pred[:, :, :, 1]
 
         loss = F.gaussian_nll_loss(pred_mu, label_batch, pred_var)
         l1_loss = F.l1_loss(pred_mu, label_batch)
@@ -88,9 +97,9 @@ class MilpGNNTrainable(pl.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
-        instance_batch, config_batch, label_batch = batch
+        instance_batch, label_batch = batch
 
-        _pred, mean_mu, mean_var, epi_var = self.forward((instance_batch, config_batch))
+        _pred, mean_mu, mean_var, epi_var = self.forward(instance_batch)
         nll_loss = F.gaussian_nll_loss(mean_mu, label_batch, mean_var)
         l1_loss = F.l1_loss(mean_mu, label_batch)
         l2_loss = F.mse_loss(mean_mu, label_batch)
@@ -111,9 +120,7 @@ class MilpGNNTrainable(pl.LightningModule):
         elif self.hparams.optimizer.lower() == "sgd":
             optimizer = torch.optim.SGD(self.parameters(), lr=self.hparams.initial_lr)
         elif self.hparams.optimizer.lower() == "rmsprop":
-            optimizer = torch.optim.RMSprop(
-                self.parameters(), lr=self.hparams.initial_lr
-            )
+            optimizer = torch.optim.RMSprop(self.parameters(), lr=self.hparams.initial_lr)
         lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             optimizer, "min", verbose=True, min_lr=1e-6, factor=0.5
         )
@@ -125,29 +132,15 @@ class MilpGNNTrainable(pl.LightningModule):
 
 
 def _get_current_git_hash():
-    retval = subprocess.run(
-        ["git", "rev-parse", "HEAD"], capture_output=True, check=True
-    )
+    retval = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, check=True)
     git_hash = retval.stdout.decode("utf-8").strip()
     return git_hash
 
 
 def main():
     problem = Problem.ONE
-    dry = subprocess.run(['hostname'], capture_output=True).stdout.decode()[:3] != "eu-"
+    dry = subprocess.run(["hostname"], capture_output=True).stdout.decode()[:3] != "eu-"
 
-    model = MilpGNNTrainable(
-        config_dim=4,
-        optimizer="RMSprop",
-        initial_lr=5e-4,
-        batch_size=64 if not dry else 4,
-        n_gnn_layers=4,
-        gnn_hidden_dim=8,
-        ensemble_size=3,
-        git_hash=_get_current_git_hash(),
-        problem=problem,
-        only_one_config=False,
-    )
     data_train = DataLoader(
         MilpDataset(
             "data/exhaustive_dataset_20_configs/1_item_placement_results_9898.csv",
@@ -156,7 +149,6 @@ def main():
             data_format=DataFormat.MAX,
             problem=problem,
             dry=dry,
-            only_one_config=False,
             instance_dir=f"{'../..' if dry else ''}/instances/{problem.value}/{Folder.TRAIN.value}",
         ),
         shuffle=True,
@@ -165,7 +157,20 @@ def main():
         num_workers=8 if not dry else 0,
         pin_memory=torch.cuda.is_available() and not dry,
     )
-    configs_in_dataset = data_train.dataset.csv_data.loc[:, ["presolve_config_encoding", "heuristic_config_encoding", "separating_config_encoding", "emphasis_config_encoding"]].apply(tuple, axis=1).unique()
+    configs_in_dataset = (
+        data_train.dataset.csv_data.loc[
+            :,
+            [
+                "presolve_config_encoding",
+                "heuristic_config_encoding",
+                "separating_config_encoding",
+                "emphasis_config_encoding",
+            ],
+        ]
+        .apply(tuple, axis=1)
+        .unique()
+    )
+    config_dim = configs_in_dataset.size
 
     data_valid = DataLoader(
         MilpDataset(
@@ -175,7 +180,6 @@ def main():
             mode=Mode.VALID,
             problem=problem,
             dry=dry,
-            only_one_config=False,
             instance_dir=f"{'../..' if dry else ''}/instances/{problem.value}/{Folder.TRAIN.value}",
         ),
         shuffle=False,
@@ -184,13 +188,27 @@ def main():
         num_workers=8 if not dry else 0,
         pin_memory=torch.cuda.is_available() and not dry,
     )
-    # TODO clean this up
+
+    model = MilpGNNTrainable(
+        config_dim=config_dim,
+        optimizer="RMSprop",
+        initial_lr=5e-4,
+        batch_size=64 if not dry else 4,
+        n_gnn_layers=4,
+        gnn_hidden_dim=64,
+        ensemble_size=3,
+        git_hash=_get_current_git_hash(),
+        problem=problem,
+    )
 
     trainer = Trainer(
         max_epochs=1000,
         gpus=1 if torch.cuda.is_available() else 0,
         callbacks=[
-            EvaluatePredictedParametersCallback(configs=configs_in_dataset, instance_dir=f"{'../..' if dry else ''}/instances/{problem.value}/{Folder.TRAIN.value}"),
+            # EvaluatePredictedParametersCallback(
+            #     configs=configs_in_dataset,
+            #     instance_dir=f"{'../..' if dry else ''}/instances/{problem.value}/{Folder.TRAIN.value}",
+            # ),
             pytorch_lightning.callbacks.LearningRateMonitor(logging_interval="epoch"),
         ],
     )

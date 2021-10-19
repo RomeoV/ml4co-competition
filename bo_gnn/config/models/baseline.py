@@ -19,13 +19,14 @@ class ConfigPerformanceRegressor(torch.nn.Module):
             hidden_dim=(gnn_hidden_dim, gnn_hidden_dim),
         )
         self.config_emb = ConfigEmbedding(in_dim=config_dim, out_dim=8)
-        self.regression_head = RegressionHead(in_dim=2 * gnn_hidden_dim + 8, out_dim=config_dim)
+        self.regression_head = RegressionHead(
+            in_dim=4 * gnn_hidden_dim, hidden_dim=8 * gnn_hidden_dim, out_dim=config_dim
+        )
 
-    def forward(self, instance_config_tuple, single_instance=False):
-        instance_batch, config_batch = instance_config_tuple
+    def forward(self, instance_batch):
         graph_embedding = self.milp_gnn(instance_batch)
-        regression_pred = self.regression_head(x, in_dim=4*gnn_hidden_dim, hidden=8*gnn_hidden_dim, out_dim=config_dim)
-        return regression_pred
+        mu_pred, sig_pred = self.regression_head(graph_embedding)
+        return torch.stack((mu_pred, sig_pred), axis=-1)
 
 
 class MilpGNN(torch.nn.Module):
@@ -56,28 +57,34 @@ class MilpGNN(torch.nn.Module):
                 for i in range(self.n_gnn_layers - 1)
             ]
         )
-        self.pool = tg.nn.global_mean_pool
-        self.pool2attention1 = torch.nn.Sequential([
+
+        self.mean_pool = tg.nn.global_mean_pool
+
+        self.attention_layer_var = torch.nn.Sequential(
             torch.nn.Linear(64, 32),
-            torch.nn.Relu(),
+            torch.nn.ReLU(),
             torch.nn.Linear(32, 1),
-        ])
-        self.pool21 = tg.nn.GlobalAttention(self.pool2attention1)
-        self.pool2attention2 = torch.nn.Sequential([
+        )
+        self.attention_pool_var = tg.nn.GlobalAttention(self.attention_layer_var)
+
+        self.attention_layer_cstr = torch.nn.Sequential(
             torch.nn.Linear(64, 32),
-            torch.nn.Relu(),
+            torch.nn.ReLU(),
             torch.nn.Linear(32, 1),
-        ])
-        self.pool22 = tg.nn.GlobalAttention(self.pool2attention1)
+        )
+        self.attention_pool_cstr = tg.nn.GlobalAttention(self.attention_layer_cstr)
 
     def forward(self, x):
         for l in self.gnns:
             x = l(x)
-        x_var = self.pool(x.var_feats, x.var_batch_el)
-        x_cstr = self.pool(x.cstr_feats, x.cstr_batch_el)
-        x_var2 = self.pool21(x.var_feats, x.var_batch_el)
-        x_cstr2 = self.pool22(x.cstr_feats, x.cstr_batch_el)
-        x = torch.cat([x_var, x_cstr, x_var2, x_cstr2], axis=-1)
+
+        # Mean pooling
+        x_var_emb = self.mean_pool(x.var_feats, x.var_batch_el)
+        x_cstr_emb = self.mean_pool(x.cstr_feats, x.cstr_batch_el)
+        # Attention pooling
+        x_var_emb2 = self.attention_pool_var(x.var_feats, x.var_batch_el)
+        x_cstr_emb2 = self.attention_pool_cstr(x.cstr_feats, x.cstr_batch_el)
+        x = torch.cat([x_var_emb, x_cstr_emb, x_var_emb2, x_cstr_emb2], axis=-1)
         return x
 
 
@@ -88,16 +95,22 @@ class GNNFwd(torch.nn.Module):
         out_dim: Tuple[int, int],
         residual=False,
         batch_norm=True,
+        additional_dense=True,
     ):
         super(GNNFwd, self).__init__()
         self.Conv = tg.nn.GraphConv
 
-        self.node_layer = self.Conv(
+        self.additional_dense = additional_dense
+        if additional_dense:
+            self.node_encoder = torch.nn.Sequential(torch.nn.Linear(in_dim[0], in_dim[0]), torch.nn.ReLU())
+            self.cstr_encoder = torch.nn.Sequential(torch.nn.Linear(in_dim[1], in_dim[1]), torch.nn.ReLU())
+
+        self.node_gnn = self.Conv(
             in_channels=in_dim[::-1],
             out_channels=out_dim[0],
             aggr="mean",
         )
-        self.cstr_layer = self.Conv(
+        self.cstr_gnn = self.Conv(
             in_channels=in_dim,
             out_channels=out_dim[1],
             aggr="mean",
@@ -109,9 +122,7 @@ class GNNFwd(torch.nn.Module):
 
         self.residual = residual
         if self.residual:
-            assert (
-                in_dim == out_dim
-            ), "For residual layers, in_dim and out_dim have to match"
+            assert in_dim == out_dim, "For residual layers, in_dim and out_dim have to match"
 
     def forward(self, data):
         x_node = data.var_feats
@@ -121,12 +132,14 @@ class GNNFwd(torch.nn.Module):
             x_node = self.node_batch_norm(x_node)
             x_cstr = self.cstr_batch_norm(x_cstr)
 
+        if self.additional_dense:
+            x_node = self.node_encoder(x_node)
+            x_cstr = self.cstr_encoder(x_cstr)
+
         edge_attr = data.edge_attr.unsqueeze(-1)
 
-        x_node_ = self.node_layer(
-            x=(x_cstr, x_node), edge_index=data.edge_index, edge_weight=edge_attr
-        )
-        x_cstr_ = self.cstr_layer(
+        x_node_ = self.node_gnn(x=(x_cstr, x_node), edge_index=data.edge_index, edge_weight=edge_attr)
+        x_cstr_ = self.cstr_gnn(
             x=(x_node, x_cstr),
             edge_index=data.edge_index.flip(-2),
             edge_weight=edge_attr,
@@ -181,9 +194,9 @@ class RegressionHead(torch.nn.Module):
         x = self.lin1(x).relu_()
         x = self.lin2(x).relu_()
         mu = self.lin3_mu(x)
-        sig = self.lin3_sig(x)
+        sig = self.lin3_sig(x).exp()
 
-        return mu
+        return mu, sig
 
 
 class TestModules(unittest.TestCase):
