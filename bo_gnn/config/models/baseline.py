@@ -11,7 +11,7 @@ from data_utils.dataset import MilpDataset
 
 
 class ConfigPerformanceRegressor(torch.nn.Module):
-    def __init__(self, config_dim, n_gnn_layers=4, gnn_hidden_dim=8):
+    def __init__(self, config_dim, n_gnn_layers=4, gnn_hidden_dim=64):
         super(ConfigPerformanceRegressor, self).__init__()
 
         self.milp_gnn = MilpGNN(
@@ -19,18 +19,12 @@ class ConfigPerformanceRegressor(torch.nn.Module):
             hidden_dim=(gnn_hidden_dim, gnn_hidden_dim),
         )
         self.config_emb = ConfigEmbedding(in_dim=config_dim, out_dim=8)
-        self.regression_head = RegressionHead(in_dim=2 * gnn_hidden_dim + 8)
+        self.regression_head = RegressionHead(in_dim=2 * gnn_hidden_dim + 8, out_dim=config_dim)
 
     def forward(self, instance_config_tuple, single_instance=False):
         instance_batch, config_batch = instance_config_tuple
         graph_embedding = self.milp_gnn(instance_batch)
-        config_embedding = self.config_emb(config_batch)
-
-        if single_instance:
-            graph_embedding = graph_embedding.repeat((config_embedding.shape[0], 1))
-
-        x = torch.cat([graph_embedding, config_embedding], dim=-1).relu_()
-        regression_pred = self.regression_head(x)
+        regression_pred = self.regression_head(x, in_dim=4*gnn_hidden_dim, hidden=8*gnn_hidden_dim, out_dim=config_dim)
         return regression_pred
 
 
@@ -63,13 +57,27 @@ class MilpGNN(torch.nn.Module):
             ]
         )
         self.pool = tg.nn.global_mean_pool
+        self.pool2attention1 = torch.nn.Sequential([
+            torch.nn.Linear(64, 32),
+            torch.nn.Relu(),
+            torch.nn.Linear(32, 1),
+        ])
+        self.pool21 = tg.nn.GlobalAttention(self.pool2attention1)
+        self.pool2attention2 = torch.nn.Sequential([
+            torch.nn.Linear(64, 32),
+            torch.nn.Relu(),
+            torch.nn.Linear(32, 1),
+        ])
+        self.pool22 = tg.nn.GlobalAttention(self.pool2attention1)
 
     def forward(self, x):
         for l in self.gnns:
             x = l(x)
         x_var = self.pool(x.var_feats, x.var_batch_el)
         x_cstr = self.pool(x.cstr_feats, x.cstr_batch_el)
-        x = torch.cat([x_var, x_cstr], axis=-1)
+        x_var2 = self.pool21(x.var_feats, x.var_batch_el)
+        x_cstr2 = self.pool22(x.cstr_feats, x.cstr_batch_el)
+        x = torch.cat([x_var, x_cstr, x_var2, x_cstr2], axis=-1)
         return x
 
 
@@ -162,16 +170,20 @@ class RegressionHead(torch.nn.Module):
         if not hidden_dim:
             hidden_dim = 4 * in_dim
 
+        self.out_dim = out_dim
+
         self.lin1 = torch.nn.Linear(in_features=in_dim, out_features=hidden_dim)
-        self.lin2 = torch.nn.Linear(in_features=hidden_dim, out_features=out_dim)
+        self.lin2 = torch.nn.Linear(in_features=hidden_dim, out_features=hidden_dim)
+        self.lin3_mu = torch.nn.Linear(in_features=hidden_dim, out_features=out_dim)
+        self.lin3_sig = torch.nn.Linear(in_features=hidden_dim, out_features=out_dim)
 
     def forward(self, x):
         x = self.lin1(x).relu_()
-        x = self.lin2(x)
-        mu = x[:, 0:1]
-        var = x[:, 1:2].exp()  # trick to make sure std is positive
-        regression_pred = torch.cat([mu, var], dim=-1)
-        return regression_pred
+        x = self.lin2(x).relu_()
+        mu = self.lin3_mu(x)
+        sig = self.lin3_sig(x)
+
+        return mu
 
 
 class TestModules(unittest.TestCase):

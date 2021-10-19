@@ -115,7 +115,7 @@ class MilpGNNTrainable(pl.LightningModule):
                 self.parameters(), lr=self.hparams.initial_lr
             )
         lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer, "min", verbose=True, min_lr=1e-6
+            optimizer, "min", verbose=True, min_lr=1e-6, factor=0.5
         )
         return {
             "optimizer": optimizer,
