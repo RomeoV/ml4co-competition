@@ -68,7 +68,7 @@ class MilpGNNTrainable(pl.LightningModule):
         return predictions, mean_mu, mean_var, epi_var
 
     def training_step(self, batch, batch_idx):
-        instance_batch, label_batch = batch
+        instance_batch, label_batch, _instance_nums = batch
         instance_batch.cstr_feats.requires_grad_(True)
         instance_batch.var_feats.requires_grad_(True)
         instance_batch.edge_attr.requires_grad_(True)
@@ -97,7 +97,7 @@ class MilpGNNTrainable(pl.LightningModule):
         return l2_loss
 
     def validation_step(self, batch, batch_idx):
-        instance_batch, label_batch = batch
+        instance_batch, label_batch, _instance_nums = batch
 
         _pred, mean_mu, mean_var, epi_var = self.forward(instance_batch)
         nll_loss = F.gaussian_nll_loss(mean_mu, label_batch, mean_var)
@@ -159,20 +159,7 @@ def main():
         num_workers=8 if not dry else 0,
         pin_memory=torch.cuda.is_available() and not dry,
     )
-    configs_in_dataset = (
-        data_train.dataset.csv_data.loc[
-            :,
-            [
-                "presolve_config_encoding",
-                "heuristic_config_encoding",
-                "separating_config_encoding",
-                "emphasis_config_encoding",
-            ],
-        ]
-        .apply(tuple, axis=1)
-        .unique()
-    )
-    config_dim = configs_in_dataset.size
+    config_dim = data_train.dataset.unique_configs_in_dataset.size
 
     data_valid = DataLoader(
         MilpDataset(
@@ -190,6 +177,7 @@ def main():
         num_workers=8 if not dry else 0,
         pin_memory=torch.cuda.is_available() and not dry,
     )
+    assert (data_train.dataset.unique_configs_in_dataset == data_valid.dataset.unique_configs_in_dataset).all()
 
     model = MilpGNNTrainable(
         config_dim=config_dim,
@@ -205,11 +193,11 @@ def main():
 
     profiler = pl.profiler.AdvancedProfiler(filename="profiler_out")
     trainer = Trainer(
-        max_epochs=10,
+        max_epochs=1000,
         gpus=1 if torch.cuda.is_available() else 0,
         callbacks=[
             EvaluatePredictedParametersCallback(
-                configs=configs_in_dataset,
+                configs=data_valid.dataset.unique_configs_in_dataset,
                 instance_dir=f"{'../..' if dry else ''}/instances/{problem.value}/{Folder.TRAIN.value}",
             ),
             pytorch_lightning.callbacks.LearningRateMonitor(logging_interval="epoch"),
