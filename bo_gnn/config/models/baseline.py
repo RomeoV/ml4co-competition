@@ -95,7 +95,7 @@ class GNNFwd(torch.nn.Module):
         out_dim: Tuple[int, int],
         residual=False,
         batch_norm=True,
-        additional_dense=False,
+        additional_dense=True,
     ):
         super(GNNFwd, self).__init__()
         self.Conv = tg.nn.TransformerConv
@@ -109,7 +109,7 @@ class GNNFwd(torch.nn.Module):
             in_channels=in_dim[::-1],
             out_channels=out_dim[0],
             edge_dim=1,
-            heads=2,
+            heads=4,
             concat=False,
             dropout=0.1,
         )
@@ -117,7 +117,7 @@ class GNNFwd(torch.nn.Module):
             in_channels=in_dim,
             out_channels=out_dim[1],
             edge_dim=1,
-            heads=2,
+            heads=4,
             concat=False,
             dropout=0.1,
         )
