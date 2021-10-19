@@ -94,7 +94,7 @@ class MilpGNNTrainable(pl.LightningModule):
             on_epoch=True,
             prog_bar=True,
         )
-        return loss
+        return l2_loss
 
     def validation_step(self, batch, batch_idx):
         instance_batch, label_batch = batch
@@ -117,6 +117,8 @@ class MilpGNNTrainable(pl.LightningModule):
     def configure_optimizers(self):
         if self.hparams.optimizer.lower() == "adam":
             optimizer = torch.optim.Adam(self.parameters(), lr=self.hparams.initial_lr)
+        if self.hparams.optimizer.lower() == "adamw":
+            optimizer = torch.optim.AdamW(self.parameters(), lr=self.hparams.initial_lr, weight_decay=1e-4)
         elif self.hparams.optimizer.lower() == "sgd":
             optimizer = torch.optim.SGD(self.parameters(), lr=self.hparams.initial_lr)
         elif self.hparams.optimizer.lower() == "rmsprop":
