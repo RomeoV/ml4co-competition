@@ -1,0 +1,14 @@
+lp/minmarkowitz = 0.999
+lp/fastmip = 0
+lp/scaling = 2
+lp/presolving = FALSE
+lp/refactorinterval = 40
+numerics/hugeval = 10000000000
+separating/maxcoefratio = 100
+constraints/linear/simplifyinequalities = FALSE
+constraints/linear/rangedrowpropagation = FALSE
+constraints/linear/maxmultaggrquot = 10
+constraints/linear/maxdualmultaggrquot = 10
+constraints/linear/extractcliques = FALSE
+constraints/linear/upgrade/knapsack = FALSE
+constraints/linear/upgrade/setppc = FALSE

@@ -1,0 +1,3 @@
+nodeselection/restartdfs/stdpriority = 536870911
+nodeselection/uct/stdpriority = 536870912
+branching/inference/priority = 536870911

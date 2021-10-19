@@ -1,0 +1,16 @@
+presolving/maxrestarts = 0
+constraints/linear/presolpairwise = FALSE
+constraints/and/presolpairwise = FALSE
+constraints/cumulative/presolpairwise = FALSE
+constraints/knapsack/presolpairwise = FALSE
+constraints/logicor/presolpairwise = FALSE
+constraints/logicor/implications = FALSE
+constraints/setppc/presolpairwise = FALSE
+constraints/varbound/presolpairwise = FALSE
+constraints/xor/presolpairwise = FALSE
+constraints/components/maxprerounds = 0
+presolving/domcol/maxrounds = 0
+presolving/gateextraction/maxrounds = 0
+presolving/sparsify/maxrounds = 0
+presolving/dualsparsify/maxrounds = 0
+propagating/probing/maxprerounds = 0
