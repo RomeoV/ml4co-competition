@@ -27,8 +27,8 @@ class EvaluatePredictedParametersCallback(pytorch_lightning.callbacks.Callback):
 
             best_config = {}
             best_config["mean"] = self.configs[mean_mu.argmin()]
-            best_config["optimistic"] = self.configs[(mean_mu - mean_var.sqrt()).argmin()]
-            best_config["pessimistic"] = self.configs[(mean_mu + mean_var.sqrt()).argmin()]
+            best_config["opti"] = self.configs[(mean_mu - mean_var.sqrt()).argmin()]
+            best_config["pess"] = self.configs[(mean_mu + mean_var.sqrt()).argmin()]
 
             # best_config = {k: all_config_inputs[v, 0:4].to(torch.int32) for k, v in best_config_id.items()}
 
@@ -77,5 +77,5 @@ class EvaluatePredictedParametersCallback(pytorch_lightning.callbacks.Callback):
             for k, v in best_configs.items():
                 percentiles[k].append(percentile_of_config(v, instance, val_data_df))
 
-        percentile_means = {f"{k}_pred_percentile": torch.tensor(v).mean() for k, v in percentiles.items()}
+        percentile_means = {f"{k}_perc": torch.tensor(v).mean() for k, v in percentiles.items()}
         self.log_dict(percentile_means, prog_bar=True)
