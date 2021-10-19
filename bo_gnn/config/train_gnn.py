@@ -205,10 +205,10 @@ def main():
         max_epochs=1000,
         gpus=1 if torch.cuda.is_available() else 0,
         callbacks=[
-            # EvaluatePredictedParametersCallback(
-            #     configs=configs_in_dataset,
-            #     instance_dir=f"{'../..' if dry else ''}/instances/{problem.value}/{Folder.TRAIN.value}",
-            # ),
+            EvaluatePredictedParametersCallback(
+                configs=configs_in_dataset,
+                instance_dir=f"{'../..' if dry else ''}/instances/{problem.value}/{Folder.TRAIN.value}",
+            ),
             pytorch_lightning.callbacks.LearningRateMonitor(logging_interval="epoch"),
         ],
     )

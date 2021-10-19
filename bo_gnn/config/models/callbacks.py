@@ -19,34 +19,18 @@ class EvaluatePredictedParametersCallback(pytorch_lightning.callbacks.Callback):
     def on_train_epoch_start(self, trainer, pl_module):
         def find_best_configs(pl_module, instance):
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-            all_config_inputs = torch.stack(
-                [
-                    torch.tensor(
-                        [a, b, c, d],
-                        dtype=torch.float32,
-                    )
-                    for (a, b, c, d) in self.configs
-                ],
-                axis=0,
-            ).to(device)
-
             instance_batch = Batch.from_data_list([instance]).to(device)
 
             pl_module.eval()
-            preds, mean_mu, mean_var, epi_var = pl_module.forward(
-                (instance_batch, all_config_inputs), single_instance=True
-            )
+            _preds, mean_mu, mean_var, _epi_var = pl_module.forward(instance_batch)
             pl_module.train()
 
-            best_config_id = {}
-            best_config_id["mean"] = mean_mu.argmin()
-            best_config_id["optimistic"] = (mean_mu - mean_var.sqrt()).argmin()
-            best_config_id["pessimistic"] = (mean_mu + mean_var.sqrt()).argmin()
+            best_config = {}
+            best_config["mean"] = self.configs[mean_mu.argmin()]
+            best_config["optimistic"] = self.configs[(mean_mu - mean_var.sqrt()).argmin()]
+            best_config["pessimistic"] = self.configs[(mean_mu + mean_var.sqrt()).argmin()]
 
-            best_config = {
-                k: all_config_inputs[v, 0:4].to(torch.int32)
-                for k, v in best_config_id.items()
-            }
+            # best_config = {k: all_config_inputs[v, 0:4].to(torch.int32) for k, v in best_config_id.items()}
 
             return best_config
 
@@ -93,8 +77,5 @@ class EvaluatePredictedParametersCallback(pytorch_lightning.callbacks.Callback):
             for k, v in best_configs.items():
                 percentiles[k].append(percentile_of_config(v, instance, val_data_df))
 
-        percentile_means = {
-            f"{k}_pred_percentile": torch.tensor(v).mean()
-            for k, v in percentiles.items()
-        }
+        percentile_means = {f"{k}_pred_percentile": torch.tensor(v).mean() for k, v in percentiles.items()}
         self.log_dict(percentile_means, prog_bar=True)
