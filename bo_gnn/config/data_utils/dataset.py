@@ -144,7 +144,7 @@ class MilpDataset(torch.utils.data.Dataset):
         self.data_mu = grouped_labels.mean()
         self.data_sig = grouped_labels.std()
 
-        self.unique_configs_in_dataset = self.csv_data_full.config_encoding.unique()
+        self.unique_configs_in_dataset = np.sort(self.csv_data_full.config_encoding.unique())
         self.unique_instance_files = self.csv_data_full.instance_file.unique()
         self.unique_instance_nums = self.csv_data_full.instance_num.unique()
         self._last_index_dbg = None
@@ -153,12 +153,14 @@ class MilpDataset(torch.utils.data.Dataset):
         return self.unique_instance_nums.size
 
     def __getitem__(self, idx):
+        """Note that the order of the labels corresponds to the order of the configs in `self.unique_configs_in_dataset`"""
         instance_num = self.unique_instance_nums[idx]
 
         primal_dual_int = (
             self.csv_data_fast.loc[instance_num]
-            .groupby("config_encoding")
+            .groupby("config_encoding")  # note: this also sorts the results by `config_endoding`
             .aggregate(np.random.choice)
+            .sort_index()  # we do this just for double safety, but this should be O(1) if it's already sorted
             .time_limit_primal_dual_integral
         )
 
@@ -170,7 +172,7 @@ class MilpDataset(torch.utils.data.Dataset):
 
         instance_data = self.instance_graphs[instance_num]
 
-        return instance_data, primal_dual_int_standarized
+        return instance_data, primal_dual_int_standarized, torch.tensor([instance_num])
 
 
 class TestDataset(unittest.TestCase):
