@@ -95,7 +95,7 @@ class GNNFwd(torch.nn.Module):
         out_dim: Tuple[int, int],
         residual=False,
         batch_norm=True,
-        additional_dense=True,
+        additional_dense=False,
     ):
         super(GNNFwd, self).__init__()
         self.Conv = tg.nn.GraphConv
