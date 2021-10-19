@@ -1,0 +1,8 @@
+heuristics/useuctsubscip = TRUE
+heuristics/crossover/useuct = TRUE
+heuristics/dins/useuct = TRUE
+heuristics/zeroobj/useuct = TRUE
+heuristics/mutation/useuct = TRUE
+heuristics/proximity/useuct = TRUE
+heuristics/rens/useuct = TRUE
+heuristics/rins/useuct = TRUE

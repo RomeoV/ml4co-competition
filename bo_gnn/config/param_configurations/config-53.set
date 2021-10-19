@@ -1,0 +1,11 @@
+presolving/restartfac = 0.0125
+presolving/restartminred = 0.06
+constraints/setppc/cliquelifting = TRUE
+presolving/boundshift/maxrounds = -1
+presolving/dualagg/maxrounds = -1
+presolving/dualinfer/maxrounds = -1
+presolving/redvub/maxrounds = -1
+presolving/tworowbnd/maxrounds = -1
+presolving/stuffing/maxrounds = -1
+propagating/probing/maxuseless = 1500
+propagating/probing/maxtotaluseless = 75
