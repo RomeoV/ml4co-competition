@@ -7,5 +7,6 @@ cp -r config/trained_model_checkpoints MixedInspiringLamePuns
 cp -r config/models MixedInspiringLamePuns
 cp config/train_gnn.py MixedInspiringLamePuns
 cp -r config/data_utils MixedInspiringLamePuns
+cp -r config/data/3_anonymous/ MixedInspiringLamePuns/data/3_anonymous
 zip -r config/MixedInspiringLamePuns.zip MixedInspiringLamePuns
 mv MixedInspiringLamePuns ../submissions
