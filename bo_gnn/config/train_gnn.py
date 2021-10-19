@@ -191,8 +191,8 @@ def main():
 
     model = MilpGNNTrainable(
         config_dim=config_dim,
-        optimizer="RMSprop",
-        initial_lr=5e-4,
+        optimizer="Adam",
+        initial_lr=1e-4,
         batch_size=64 if not dry else 4,
         n_gnn_layers=4,
         gnn_hidden_dim=64,
