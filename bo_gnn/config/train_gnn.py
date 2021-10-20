@@ -79,13 +79,13 @@ class MilpGNNTrainable(pl.LightningModule):
         pred_mu = pred[:, :, :, 0]
         pred_var = pred[:, :, :, 1]
 
-        loss = F.gaussian_nll_loss(pred_mu, label_batch, pred_var)
+        nll_loss = F.gaussian_nll_loss(pred_mu, label_batch, pred_var)
         l1_loss = F.l1_loss(pred_mu, label_batch)
         l2_loss = F.mse_loss(pred_mu, label_batch)
         sigs = pred_var.mean(axis=1).sqrt()
         self.log_dict(
             {
-                "train_loss": loss,
+                "train_nll_loss": nll_loss,
                 "train_sigmas": sigs,
                 "train_l1": l1_loss,
                 "train_l2": l2_loss,
@@ -129,7 +129,7 @@ class MilpGNNTrainable(pl.LightningModule):
         return {
             "optimizer": optimizer,
             "lr_scheduler": lr_scheduler,
-            "monitor": "train_loss",
+            "monitor": "train_nll_loss",
         }
 
 
