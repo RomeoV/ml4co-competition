@@ -139,10 +139,14 @@ class MilpDataset(torch.utils.data.Dataset):
             ["instance_num", "config_encoding", "time_limit_primal_dual_integral"]
         ].set_index("instance_num")
 
+        # compute global mu and sigma
+        self.data_mu = self.csv_data_fast.time_limit_primal_dual_integral.mean()
+        self.data_sig = self.csv_data_fast.time_limit_primal_dual_integral.std()
+        
         # compute per-instance mu and sigma and normalize label by that
-        grouped_labels = self.csv_data_fast.groupby("instance_num")
-        self.data_mu = grouped_labels.mean()
-        self.data_sig = grouped_labels.std()
+        #grouped_labels = self.csv_data_fast.groupby("instance_num")
+        #self.data_mu = grouped_labels.mean()
+        #self.data_sig = grouped_labels.std()
 
         self.unique_configs_in_dataset = np.sort(self.csv_data_full.config_encoding.unique())
         self.unique_instance_files = self.csv_data_full.instance_file.unique()
@@ -163,11 +167,13 @@ class MilpDataset(torch.utils.data.Dataset):
             .sort_index()  # we do this just for double safety, but this should be O(1) if it's already sorted
             .time_limit_primal_dual_integral
         )
-
-        mu, sig = (
-            self.data_mu.loc[instance_num][0],
-            self.data_sig.loc[instance_num][0],
-        )
+        
+        mu, sig = (self.data_mu, self.data_sig)
+        # instance-wise
+        #mu, sig = (
+        #    self.data_mu.loc[instance_num][0],
+        #    self.data_sig.loc[instance_num][0],
+        #)
         primal_dual_int_standarized = torch.tensor((primal_dual_int - mu) / sig, dtype=torch.float32)
 
         instance_data = self.instance_graphs[instance_num]
