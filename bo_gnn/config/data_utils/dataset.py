@@ -61,9 +61,14 @@ class MilpDataset(torch.utils.data.Dataset):
         self.csv_data_full = pd.read_csv(csv_file)
 
         if dry:
-            self.csv_data_full = self.csv_data_full[
-                self.csv_data_full.instance_file.str.match(".*_\d\d.mps")
-            ].reset_index(drop=True)
+            if mode == Mode.TRAIN:
+                self.csv_data_full = self.csv_data_full[
+                    self.csv_data_full.instance_file.str.match(".*_\d\d.mps")
+                ].reset_index(drop=True)
+            elif mode == Mode.VALID:
+                self.csv_data_full = self.csv_data_full[
+                    self.csv_data_full.instance_file.str.match(".*_99\d\d.mps")
+                ].reset_index(drop=True)
 
         if mode == Mode.TRAIN:
             # Select instances ending/not ending in "0" for train/validation split

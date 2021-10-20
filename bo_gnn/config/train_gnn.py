@@ -94,7 +94,7 @@ class MilpGNNTrainable(pl.LightningModule):
             on_epoch=True,
             prog_bar=True,
         )
-        return l2_loss
+        return nll_loss
 
     def validation_step(self, batch, batch_idx):
         instance_batch, label_batch, _instance_nums = batch
@@ -145,7 +145,7 @@ def main():
 
     data_train = DataLoader(
         MilpDataset(
-            "data/exhaustive_dataset_all_configs/1_item_placement_results_9900.csv",
+            "data/exhaustive_dataset_all_configs/1_item_placement_results_combined.csv",
             folder=Folder.TRAIN,
             mode=Mode.TRAIN,
             data_format=DataFormat.MAX,
@@ -163,13 +163,13 @@ def main():
 
     data_valid = DataLoader(
         MilpDataset(
-            "data/exhaustive_dataset_all_configs/1_item_placement_results_9900.csv",
-            folder=Folder.TRAIN,
+            "data/exhaustive_dataset_all_configs/1_item_placement_results_validation.csv",
+            folder=Folder.VALID,
             data_format=DataFormat.MAX,
             mode=Mode.VALID,
             problem=problem,
             dry=dry,
-            instance_dir=f"{'../..' if dry else ''}/instances/{problem.value}/{Folder.TRAIN.value}",
+            instance_dir=f"{'../..' if dry else ''}/instances/{problem.value}/{Folder.VALID.value}",
         ),
         shuffle=False,
         batch_size=64 if not dry else 4,
@@ -198,7 +198,7 @@ def main():
         callbacks=[
             EvaluatePredictedParametersCallback(
                 configs=data_valid.dataset.unique_configs_in_dataset,
-                instance_dir=f"{'../..' if dry else ''}/instances/{problem.value}/{Folder.TRAIN.value}",
+                instance_dir=f"{'../..' if dry else ''}/instances/{problem.value}/{Folder.VALID.value}",
             ),
             pytorch_lightning.callbacks.LearningRateMonitor(logging_interval="epoch"),
         ],
