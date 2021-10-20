@@ -94,7 +94,7 @@ class MilpGNNTrainable(pl.LightningModule):
             on_epoch=True,
             prog_bar=True,
         )
-        return nll_loss
+        return l2_loss
 
     def validation_step(self, batch, batch_idx):
         instance_batch, label_batch, _instance_nums = batch
@@ -140,12 +140,12 @@ def _get_current_git_hash():
 
 
 def main():
-    problem = Problem.ONE
+    problem = Problem.TWO
     dry = subprocess.run(["hostname"], capture_output=True).stdout.decode()[:3] != "eu-"
 
     data_train = DataLoader(
         MilpDataset(
-            "data/exhaustive_dataset_all_configs/1_item_placement_results_combined.csv",
+            "data/exhaustive_dataset_all_configs/2_load_balancing_results_9900.csv",
             folder=Folder.TRAIN,
             mode=Mode.TRAIN,
             data_format=DataFormat.MAX,
@@ -154,7 +154,7 @@ def main():
             instance_dir=f"{'../..' if dry else ''}/instances/{problem.value}/{Folder.TRAIN.value}",
         ),
         shuffle=True,
-        batch_size=64 if not dry else 4,
+        batch_size=16 if not dry else 4,
         drop_last=False,
         num_workers=8 if not dry else 0,
         pin_memory=torch.cuda.is_available() and not dry,
@@ -163,7 +163,7 @@ def main():
 
     data_valid = DataLoader(
         MilpDataset(
-            "data/exhaustive_dataset_all_configs/1_item_placement_results_validation.csv",
+            "data/exhaustive_dataset_all_configs/2_load_balancing_results_validation.csv",
             folder=Folder.VALID,
             data_format=DataFormat.MAX,
             mode=Mode.VALID,
@@ -172,7 +172,7 @@ def main():
             instance_dir=f"{'../..' if dry else ''}/instances/{problem.value}/{Folder.VALID.value}",
         ),
         shuffle=False,
-        batch_size=64 if not dry else 4,
+        batch_size=16 if not dry else 4,
         drop_last=False,
         num_workers=8 if not dry else 0,
         pin_memory=torch.cuda.is_available() and not dry,
@@ -183,7 +183,7 @@ def main():
         config_dim=config_dim,
         optimizer="AdamW",
         initial_lr=1e-4,
-        batch_size=64 if not dry else 4,
+        batch_size=16 if not dry else 4,
         n_gnn_layers=4,
         gnn_hidden_dim=64,
         ensemble_size=3,
