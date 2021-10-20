@@ -94,7 +94,7 @@ class MilpGNNTrainable(pl.LightningModule):
             on_epoch=True,
             prog_bar=True,
         )
-        return l2_loss
+        return loss
 
     def validation_step(self, batch, batch_idx):
         instance_batch, label_batch, _instance_nums = batch
@@ -181,7 +181,7 @@ def main():
 
     model = MilpGNNTrainable(
         config_dim=config_dim,
-        optimizer="Adam",
+        optimizer="AdamW",
         initial_lr=1e-4,
         batch_size=32 if not dry else 2,
         n_gnn_layers=4,
