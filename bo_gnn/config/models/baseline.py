@@ -58,7 +58,7 @@ class MilpGNN(torch.nn.Module):
             ]
         )
 
-        self.mean_pool = tg.nn.global_mean_pool
+        self.max_pool = tg.nn.global_max_pool
 
         self.attention_layer_var = torch.nn.Sequential(
             torch.nn.Linear(64, 32),
@@ -78,9 +78,9 @@ class MilpGNN(torch.nn.Module):
         for l in self.gnns:
             x = l(x)
 
-        # Mean pooling
-        x_var_emb = self.mean_pool(x.var_feats, x.var_batch_el)
-        x_cstr_emb = self.mean_pool(x.cstr_feats, x.cstr_batch_el)
+        # Max pooling
+        x_var_emb = self.max_pool(x.var_feats, x.var_batch_el)
+        x_cstr_emb = self.max_pool(x.cstr_feats, x.cstr_batch_el)
         # Attention pooling
         x_var_emb2 = self.attention_pool_var(x.var_feats, x.var_batch_el)
         x_cstr_emb2 = self.attention_pool_cstr(x.cstr_feats, x.cstr_batch_el)
