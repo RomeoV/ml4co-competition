@@ -140,12 +140,12 @@ def _get_current_git_hash():
 
 
 def main():
-    problem = Problem.ONE
+    problem = Problem.TWO
     dry = subprocess.run(["hostname"], capture_output=True).stdout.decode()[:3] != "eu-"
 
     data_train = DataLoader(
         MilpDataset(
-            "data/exhaustive_dataset_all_configs/1_item_placement_results_9900.csv",
+            "data/exhaustive_dataset_all_configs/2_load_balancing_results_9900.csv",
             folder=Folder.TRAIN,
             mode=Mode.TRAIN,
             data_format=DataFormat.MAX,
@@ -163,7 +163,7 @@ def main():
 
     data_valid = DataLoader(
         MilpDataset(
-            "data/exhaustive_dataset_all_configs/1_item_placement_results_9900.csv",
+            "data/exhaustive_dataset_all_configs/2_load_balancing_results_9900.csv",
             folder=Folder.TRAIN,
             data_format=DataFormat.MAX,
             mode=Mode.VALID,
