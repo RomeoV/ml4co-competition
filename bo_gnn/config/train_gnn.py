@@ -154,7 +154,7 @@ def main():
             instance_dir=f"{'../..' if dry else ''}/instances/{problem.value}/{Folder.TRAIN.value}",
         ),
         shuffle=True,
-        batch_size=16 if not dry else 4,
+        batch_size=8 if not dry else 4,
         drop_last=False,
         num_workers=8 if not dry else 0,
         pin_memory=torch.cuda.is_available() and not dry,
@@ -163,7 +163,7 @@ def main():
 
     data_valid = DataLoader(
         MilpDataset(
-            "data/exhaustive_dataset_all_configs/2_load_balancing_results_validation.csv",
+            "data/exhaustive_dataset_all_configs/2_load_balancing_results_validation_filtered.csv",
             folder=Folder.VALID,
             data_format=DataFormat.MAX,
             mode=Mode.VALID,
@@ -172,7 +172,7 @@ def main():
             instance_dir=f"{'../..' if dry else ''}/instances/{problem.value}/{Folder.VALID.value}",
         ),
         shuffle=False,
-        batch_size=16 if not dry else 4,
+        batch_size=8 if not dry else 4,
         drop_last=False,
         num_workers=8 if not dry else 0,
         pin_memory=torch.cuda.is_available() and not dry,
@@ -183,7 +183,7 @@ def main():
         config_dim=config_dim,
         optimizer="AdamW",
         initial_lr=1e-4,
-        batch_size=16 if not dry else 4,
+        batch_size=8 if not dry else 4,
         n_gnn_layers=4,
         gnn_hidden_dim=64,
         ensemble_size=3,
