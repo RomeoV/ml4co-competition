@@ -21,6 +21,7 @@ class ConfigPerformanceRegressor(torch.nn.Module):
             n_gnn_layers=n_gnn_layers,
             hidden_dim=(gnn_hidden_dim, gnn_hidden_dim),
         )
+        self.config_emb = ConfigEmbedding(in_dim=config_dim, out_dim=8)
         self.regression_head = RegressionHead(
             in_dim=4 * gnn_hidden_dim, hidden_dim=8 * gnn_hidden_dim, out_dim=config_dim
         )
@@ -107,6 +108,8 @@ class GNNFwd(torch.nn.Module):
             self.node_encoder = torch.nn.Sequential(torch.nn.Linear(in_dim[0], in_dim[0]), torch.nn.ReLU())
             self.cstr_encoder = torch.nn.Sequential(torch.nn.Linear(in_dim[1], in_dim[1]), torch.nn.ReLU())
 
+        # We're using 'mean' aggregation, because I've seen one single comparison and 'mean' had better performance than 'add'
+        # Table 8 (Appendix) of Bengio et al: Benchmarking GNNs: https://arxiv.org/pdf/2003.00982.pdf
         self.node_gnn = self.Conv(
             in_channels=in_dim[::-1],
             out_channels=out_dim[0],
