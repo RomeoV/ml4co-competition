@@ -2,8 +2,11 @@ from typing import Tuple
 import torch
 import torch.nn
 import torch_geometric as tg
+from torch_geometric.data import DataLoader
+from data_utils.dataset import Folder, DataFormat, Problem, Mode
 import torch.nn.functional as F
 import numpy as np
+import time
 
 import unittest
 
@@ -18,7 +21,6 @@ class ConfigPerformanceRegressor(torch.nn.Module):
             n_gnn_layers=n_gnn_layers,
             hidden_dim=(gnn_hidden_dim, gnn_hidden_dim),
         )
-        self.config_emb = ConfigEmbedding(in_dim=config_dim, out_dim=8)
         self.regression_head = RegressionHead(
             in_dim=4 * gnn_hidden_dim, hidden_dim=8 * gnn_hidden_dim, out_dim=config_dim
         )
@@ -61,16 +63,16 @@ class MilpGNN(torch.nn.Module):
         self.max_pool = tg.nn.global_max_pool
 
         self.attention_layer_var = torch.nn.Sequential(
-            torch.nn.Linear(64, 32),
+            torch.nn.Linear(hidden_dim[0], hidden_dim[0] // 2),
             torch.nn.ReLU(),
-            torch.nn.Linear(32, 1),
+            torch.nn.Linear(hidden_dim[0] // 2, 1),
         )
         self.attention_pool_var = tg.nn.GlobalAttention(self.attention_layer_var)
 
         self.attention_layer_cstr = torch.nn.Sequential(
-            torch.nn.Linear(64, 32),
+            torch.nn.Linear(hidden_dim[1], hidden_dim[1] // 2),
             torch.nn.ReLU(),
-            torch.nn.Linear(32, 1),
+            torch.nn.Linear(hidden_dim[1] // 2, 1),
         )
         self.attention_pool_cstr = tg.nn.GlobalAttention(self.attention_layer_cstr)
 
@@ -200,42 +202,103 @@ class RegressionHead(torch.nn.Module):
 
 
 class TestModules(unittest.TestCase):
-    def test_config_embedding(self):
-        ds = MilpDataset("data/output.csv", folder="train")
-        dl = tg.data.DataLoader(ds, batch_size=12)
-        dl_it = iter(dl)
-        instance_batch, config_batch, label_batch = next(dl_it)
-        config_emb = ConfigEmbedding()
-        y = config_emb(config_batch)
-        self.assertEqual(y.shape, (12, 8))
-        self.assertTrue(y.isfinite().all())
-
     def test_graph_embedding(self):
-        ds = MilpDataset("data/output.csv", folder="train")
-        dl = tg.data.DataLoader(ds, batch_size=12)
+        dry = True
+        problem = Problem.ONE
+        dl = DataLoader(
+            MilpDataset(
+                "data/exhaustive_dataset_all_configs/1_item_placement_results_validation.csv",
+                folder=Folder.VALID,
+                data_format=DataFormat.MAX,
+                mode=Mode.VALID,
+                problem=problem,
+                dry=dry,
+                instance_dir=f"{'../..' if dry else ''}/instances/{problem.value}/{Folder.VALID.value}",
+            ),
+            shuffle=False,
+            batch_size=2,
+            drop_last=False,
+            num_workers=0,
+            pin_memory=False,
+        )
         dl_it = iter(dl)
-        instance_batch, config_batch, label_batch = next(dl_it)
-        graph_emb = MilpGNN()
+        instance_batch, label_batch, _instance_num = next(dl_it)
+        graph_emb = MilpGNN((32, 28), 3)
         y = graph_emb(instance_batch)
-        self.assertEqual(y.shape, (12, 8))
+        self.assertEqual(y.shape, (2, 2 * 32 + 2 * 28))
         self.assertTrue(y.isfinite().all())
 
 
 class TestModelEval(unittest.TestCase):
     def test_random_batch(self):
-        ds = MilpDataset("data/output.csv", folder="train")
-        dl = tg.data.DataLoader(ds, batch_size=8)
+        dry = True
+        problem = Problem.ONE
+        dl = DataLoader(
+            MilpDataset(
+                "data/exhaustive_dataset_all_configs/1_item_placement_results_validation.csv",
+                folder=Folder.VALID,
+                data_format=DataFormat.MAX,
+                mode=Mode.VALID,
+                problem=problem,
+                dry=dry,
+                instance_dir=f"{'../..' if dry else ''}/instances/{problem.value}/{Folder.VALID.value}",
+            ),
+            shuffle=False,
+            batch_size=2,
+            drop_last=False,
+            num_workers=0,
+            pin_memory=False,
+        )
         dl_it = iter(dl)
-        instance_batch, config_batch, label_batch = next(dl_it)
+        instance_batch, label_batch, _instance_num = next(dl_it)
         self.assertTrue(instance_batch.var_feats.isfinite().all())
         self.assertTrue(instance_batch.cstr_feats.isfinite().all())
-        self.assertTrue(config_batch.isfinite().all())
 
-        model = ConfigPerformanceRegressor()
-        pred = model((instance_batch, config_batch))
+        model = ConfigPerformanceRegressor(config_dim=7).eval()
+        for _ in range(3):
+            pred = model(instance_batch.clone())
 
-        F.mse_loss(pred[:, 0:1], label_batch)
-        F.gaussian_nll_loss(pred[:, 0:1], label_batch, pred[:, 1:2])
-
+        self.assertEqual(pred.shape, (2, 7, 2), msg=pred)
         self.assertTrue(pred.isfinite().all(), msg=pred)
         self.assertTrue(label_batch.isfinite().all())
+
+
+class TimeModelEval(unittest.TestCase):
+    def test_random_batch_timing_cpu(self):
+        dry = True
+        problem = Problem.ONE
+        dl = DataLoader(
+            MilpDataset(
+                "data/exhaustive_dataset_all_configs/1_item_placement_results_validation.csv",
+                folder=Folder.VALID,
+                data_format=DataFormat.MAX,
+                mode=Mode.VALID,
+                problem=problem,
+                dry=dry,
+                instance_dir=f"{'../..' if dry else ''}/instances/{problem.value}/{Folder.VALID.value}",
+            ),
+            shuffle=False,
+            batch_size=2,
+            drop_last=False,
+            num_workers=0,
+            pin_memory=False,
+        )
+        dl_it = iter(dl)
+        instance_batch, _label_batch, _instance_num = next(dl_it)
+
+        for device in ["cpu", "cuda:0"]:
+            model = ConfigPerformanceRegressor(config_dim=60).to(device).eval()
+            instance_batch = instance_batch.to(device)
+
+            N_warmup = 20
+            N_rep = 100
+
+            for _ in range(N_warmup):
+                pred = model(instance_batch.clone())
+
+            start_time = time.time()
+            for _ in range(N_rep):
+                pred = model(instance_batch.clone())
+            time_diff = time.time() - start_time
+
+            print(f"{N_rep} {device} evals took {time_diff} seconds")
