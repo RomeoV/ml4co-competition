@@ -18,9 +18,8 @@ dependencies:
   - joblib
   - ConfigSpace
   - filelock
-  #- pytorch=1.9.1
-  #- cudatoolkit=11.1
-  #- pytorch_geometric
+  - pytorch=1.9.1
+  - pyg
   - pytorch-lightning=1.4.5
 
   # additional pip dependencies go here
