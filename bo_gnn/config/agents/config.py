@@ -93,7 +93,7 @@ class Policy():
 
     def __call__(self, action_set, observation):
         if self.problem == "anonymous":
-            best_config_id = self.best_config_id_prediction_model(observation)
+            best_config_id = self.best_config_id_prediction_model.predict(observation)
             return self._get_scip_parameter_configuration_by(best_config_id)
         else:
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
