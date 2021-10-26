@@ -2,3 +2,4 @@ singularity/base.sif
 submissions
 instances
 common/__pycache__
+**/.DS_Store
