@@ -17,6 +17,7 @@ from data_utils.milp_data import MilpBipartiteData
 
 CHECKPOINT_BASE_PATH = "trained_model_checkpoints/"
 PARAMETER_CONFIGURATIONS_PATH = "param_configurations/"
+HEURISTIC_SCHEDULES_PATH = "heuristics_schedules/"
 
 
 class ObservationFunction(MilpBipartite):
@@ -71,6 +72,7 @@ class Policy():
     def __init__(self, problem):
         # called once for each problem benchmark
         self.problem = problem  # to devise problem-specific policies
+        self.use_heuristic_schedules = True
 
         if self.problem == "anonymous":
             self.best_config_id_prediction_model = Task3NNModel()
@@ -107,7 +109,6 @@ class Policy():
     def __call__(self, action_set, observation):
         if self.problem == "anonymous":
             best_config_id = self.best_config_id_prediction_model.predict(observation)
-            return self._get_scip_parameter_configuration_by(best_config_id)
         else:
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -125,7 +126,12 @@ class Policy():
             assert (isinstance(best_config_tuple, tuple)) and len(best_config_tuple) == 4
             best_config_id = self.config_tuple_to_id_mapping[best_config_tuple]
 
-            return self._get_scip_parameter_configuration_by(best_config_id)
+        best_config_parameters = self._get_scip_parameter_configuration_by(best_config_id)
+        if self.use_heuristic_schedules:
+            schedule_heuristic_parameters = self._load_schedule_heuristic_parameters(self.problem)
+            return {**best_config_parameters, **schedule_heuristic_parameters}
+        else:
+            return best_config_parameters
 
     def _get_scip_parameter_configuration_by(self, index: int) -> Dict[str, Any]:
         path = PARAMETER_CONFIGURATIONS_PATH + "config-" + str(index) + ".set"
@@ -145,3 +151,26 @@ class Policy():
                         raise RuntimeWarning("Unexpected parameter type.")
 
         return parameter_configuration
+
+    def _load_schedule_heuristic_parameters(self, problem: str) -> Dict[str, Any]:
+        if problem == "item_placement":
+            path = HEURISTIC_SCHEDULES_PATH + "schedule1_15min.set"
+        elif problem == "load_balancing":
+            path = HEURISTIC_SCHEDULES_PATH + "schedule2_30min.set"
+        elif problem == "anonymous":
+            path = HEURISTIC_SCHEDULES_PATH + "schedule3_30min.set"
+        else:
+            raise RuntimeError("Unexpected problem identifier.")
+
+        parameters = {}
+        with open(path, "r") as file:
+            for setting in file.readlines():
+                if setting.strip() == "":
+                    continue
+                param_key, param_value = setting.split(" = ")
+                try:
+                    parameters[param_key] = float(param_value)
+                except ValueError:
+                    raise RuntimeWarning("Unexpected parameter type.")
+
+        return parameters

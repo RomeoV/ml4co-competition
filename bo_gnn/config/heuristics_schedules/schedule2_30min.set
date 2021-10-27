@@ -1,0 +1,59 @@
+heuristics/veclendiving/freq = 1 
+heuristics/veclendiving/freqofs = 0 
+heuristics/veclendiving/priority = -10
+ 
+heuristics/guideddiving/freq = 1 
+heuristics/guideddiving/freqofs = 0 
+heuristics/guideddiving/priority = -20
+ 
+heuristics/conflictdiving/freq = 1 
+heuristics/conflictdiving/freqofs = 0 
+heuristics/conflictdiving/priority = -30
+ 
+heuristics/coefdiving/freq = 1 
+heuristics/coefdiving/freqofs = 0 
+heuristics/coefdiving/priority = -40
+ 
+heuristics/crossover/freq = 1 
+heuristics/crossover/freqofs = 0 
+heuristics/crossover/priority = -50
+heuristics/crossover/maxnodes = 214
+ 
+heuristics/fracdiving/freq = 1 
+heuristics/fracdiving/freqofs = 0 
+heuristics/fracdiving/priority = -60
+ 
+heuristics/linesearchdiving/freq = 1 
+heuristics/linesearchdiving/freqofs = 0 
+heuristics/linesearchdiving/priority = -70
+ 
+heuristics/pscostdiving/freq = 1 
+heuristics/pscostdiving/freqofs = 0 
+heuristics/pscostdiving/priority = -80
+ 
+heuristics/actconsdiving/freq = 1 
+heuristics/actconsdiving/freqofs = 0 
+heuristics/actconsdiving/priority = -90
+ 
+heuristics/distributiondiving/freq = 1 
+heuristics/distributiondiving/freqofs = 0 
+heuristics/distributiondiving/priority = -100
+ 
+heuristics/trustregion/freq = 1 
+heuristics/trustregion/freqofs = 0 
+heuristics/trustregion/priority = -110
+heuristics/trustregion/maxnodes = 11
+ 
+heuristics/mutation/freq = 1 
+heuristics/mutation/freqofs = 0 
+heuristics/mutation/priority = -120
+heuristics/mutation/maxnodes = 826
+ 
+heuristics/farkasdiving/freq = 1 
+heuristics/farkasdiving/freqofs = 0 
+heuristics/farkasdiving/priority = -130
+ 
+heuristics/rens/freq = -1 
+heuristics/rins/freq = -1 
+heuristics/localbranching/freq = -1 
+heuristics/dins/freq = -1 
