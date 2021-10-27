@@ -96,8 +96,8 @@ class Policy():
                 raise ValueError(f"Problem {self.problem} unknown.")
             self.performance_prediction_model.eval()
 
-        if torch.cuda.is_available():
-            self.performance_prediction_model.to(torch.device("cuda"))
+            if torch.cuda.is_available():
+                self.performance_prediction_model.to(torch.device("cuda"))
 
     def seed(self, seed):
         # called before each episode
