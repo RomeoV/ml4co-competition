@@ -1,5 +1,6 @@
 import os
 import pickle as pkl
+import random
 from typing import Any, Dict, Tuple
 import sys
 
@@ -72,7 +73,7 @@ class Policy():
     def __init__(self, problem):
         # called once for each problem benchmark
         self.problem = problem  # to devise problem-specific policies
-        self.use_heuristic_schedules = True
+        self.use_heuristic_schedules = False
 
         if self.problem == "anonymous":
             self.best_config_id_prediction_model = Task3NNModel()
@@ -108,7 +109,10 @@ class Policy():
 
     def __call__(self, action_set, observation):
         if self.problem == "anonymous":
-            best_config_id = self.best_config_id_prediction_model.predict(observation)
+            if random.random() < 0.5:
+                best_config_id = 209
+            else:
+                best_config_id = self.best_config_id_prediction_model.predict(observation)
         else:
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
