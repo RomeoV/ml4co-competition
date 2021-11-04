@@ -138,7 +138,7 @@ def solve_a_problem(instance_path, config_encoding: Tuple[int, int, int, int], t
         time_limit=time_limit,
         observation_function=ec.observation.MilpBipartite(),
         reward_function=integral_function,
-        scip_params={"limits/memory": 19 * 1024 if not dry_run else 2 * 1024},
+        scip_params={"limits/memory": 11 * 1024 if not dry_run else 2 * 1024},
     )
     obs, _, _, _, _ = env.reset(instance_path)
 
