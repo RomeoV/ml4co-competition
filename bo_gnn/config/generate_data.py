@@ -8,6 +8,9 @@ import os
 import argparse
 import tempfile
 import subprocess
+import pandas as pd
+import pyscipopt
+from collections import OrderedDict
 
 from filelock import FileLock
 import ecole
@@ -15,8 +18,7 @@ import pathlib
 import json
 import ecole as ec
 import numpy as np
-from typing import List, Dict, Callable
-import ConfigSpace as CS
+from typing import List, Dict, Callable, Tuple
 
 sys.path.append("../../common")
 from environments import Configuring
@@ -29,9 +31,9 @@ from config_utils import sampleActions, getParamsFromFile
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "-n",
-        "--num_instances",
-        help="Number of instances to solve (consider putting multiple of cpus)",
+        "-t",
+        "--task_file",
+        help="CSV file with tasks to solve",
         type=int,
     )
     parser.add_argument(
@@ -69,8 +71,11 @@ def parse_args():
 
 def main():
     args = parse_args()
+
+    task_df = pd.read_csv(args.task_file)
+
     solve_random_instances_and_periodically_write_to_file(
-        n_instances=args.num_instances,
+        task_df=task_df,
         n_jobs=args.num_jobs,
         folder=args.folder,
         output_file=args.output_file,
@@ -80,40 +85,45 @@ def main():
 
 
 def solve_random_instances_and_periodically_write_to_file(
-    n_instances, output_file, folder, n_jobs=-1, time_limit=5 * 60, dry_run=True
+    task_df, output_file, folder, n_jobs=-1, time_limit=5 * 60, dry_run=True
 ):
     instance_path = pathlib.Path(f"../../instances/1_item_placement/{folder}")
     instance_files = list(map(str, instance_path.glob("*.mps.gz")))
 
-    paramfile = "parameters.pcs"
-    csv_fmt_fct = _makeMapCategoricalsToNumericalLevels(paramfile)
-
-    instances = random.choices(instance_files, k=n_instances)
-    actions = sampleActions(paramfile, n_samples=n_instances)
+    instances = [os.path.join(instance_path, f) for f in task_df.instance_file]
+    actions = list(
+        task_df.loc[
+            :,
+            [
+                "presolve_config_encoding",
+                "heuristic_config_encoding",
+                "separating_config_encoding",
+                "emphasis_config_encoding",
+            ],
+        ].apply(tuple, axis=1)
+    )
 
     # Batch problems so that we can write to file after each batch.
     # This is useful when we run a very large number of instances which might fail
     # late into the problem solving (e.g. running out of RAM).
-    instance_batches = _to_batches(instances, n_instances=n_instances, n_jobs=n_jobs)
-    action_batches = _to_batches(actions, n_instances=n_instances, n_jobs=n_jobs)
+    instance_batches = _to_batches(instances, n_jobs=n_jobs)
+    action_batches = _to_batches(actions, n_jobs=n_jobs)
 
     for instance_batch, action_batch in zip(instance_batches, action_batches):
         results = jl.Parallel(n_jobs=n_jobs, verbose=100)(
             jl.delayed(solve_a_problem)(
                 instance,
-                config=action,
+                config_encoding=action,
                 time_limit=time_limit if not dry_run else 5,
                 dry_run=dry_run,
             )
             for instance, action in zip(instance_batch, action_batch)
         )
 
-        _write_results_to_csv(output_file, results, fmt_fcts=[csv_fmt_fct])
+        _write_results_to_csv(output_file, results)
 
 
-def solve_a_problem(
-    instance_path, config: Dict = {}, time_limit: int = 20, dry_run: bool = False
-):
+def solve_a_problem(instance_path, config_encoding: Tuple[int, int, int, int], time_limit: int, dry_run: bool = False):
     integral_function = TimeLimitPrimalDualIntegral()
     with open(instance_path.replace(".mps.gz", ".json")) as f:
         instance_info = json.load(f)
@@ -131,27 +141,21 @@ def solve_a_problem(
         scip_params={"limits/memory": 19 * 1024 if not dry_run else 2 * 1024},
     )
     obs, _, _, _, _ = env.reset(instance_path)
+
+    config = _config_encoding_to_dict(config_encoding)
     _, _, reward, done, info = env.step(config)
-    info.update(config)
-    info.update(
-        {
-            "instance_file": pathlib.PosixPath(instance_path).name,
-            "time_limit": time_limit,
-            "initial_primal_bound": instance_info["primal_bound"],
-            "initial_dual_bound": instance_info["dual_bound"],
-            "time_limit_primal_dual_integral": reward,
-        }
-    )
-    return info
+    result = {
+        "instance_file": pathlib.Path(instance_path).name,
+        "presolve_config_encoding": config_encoding[0],
+        "heuristic_config_encoding": config_encoding[1],
+        "separating_config_encoding": config_encoding[2],
+        "emphasis_config_encoding": config_encoding[3],
+        "time_limit_primal_dual_integral": reward,
+    }
+    return result
 
 
-def _write_results_to_csv(
-    output_file, results: List[Dict], fmt_fcts: List[Callable] = []
-):
-    for f in fmt_fcts:
-        for res in results:
-            res = f(res)
-
+def _write_results_to_csv(output_file, results: List[Dict], fmt_fcts: List[Callable] = []):
     # We use a lockfile so we can write to the file from multiple processes.
     lock = FileLock(f"{output_file}.lck")
     with lock:
@@ -162,6 +166,58 @@ def _write_results_to_csv(
                 writer.writeheader()
             for r in results:
                 writer.writerow(r)
+
+
+def _config_encoding_to_dict(config_encoding):
+    presolve, heuristic, separating, emphasis = config_encoding
+
+    SETTINGS = OrderedDict(
+        {
+            0: pyscipopt.SCIP_PARAMSETTING.OFF,
+            1: pyscipopt.SCIP_PARAMSETTING.DEFAULT,
+            2: pyscipopt.SCIP_PARAMSETTING.FAST,
+            3: pyscipopt.SCIP_PARAMSETTING.AGGRESSIVE,
+        }
+    )
+    EMPHASIS_SETTINGS = OrderedDict(
+        {
+            0: pyscipopt.SCIP_PARAMEMPHASIS.DEFAULT,
+            1: pyscipopt.SCIP_PARAMEMPHASIS.CPSOLVER,
+            2: pyscipopt.SCIP_PARAMEMPHASIS.EASYCIP,
+            3: pyscipopt.SCIP_PARAMEMPHASIS.FEASIBILITY,
+            4: pyscipopt.SCIP_PARAMEMPHASIS.HARDLP,
+            5: pyscipopt.SCIP_PARAMEMPHASIS.OPTIMALITY,
+            6: pyscipopt.SCIP_PARAMEMPHASIS.COUNTER,
+            7: pyscipopt.SCIP_PARAMEMPHASIS.PHASEFEAS,
+            8: pyscipopt.SCIP_PARAMEMPHASIS.PHASEIMPROVE,
+            9: pyscipopt.SCIP_PARAMEMPHASIS.PHASEPROOF,
+            # 10: pyscipopt.SCIP_PARAMEMPHASIS.NUMERICS,
+        }
+    )
+
+    model = pyscipopt.Model()
+    # we pick 'emphasis' first as it overrides a lot of other options
+    if emphasis != 0:  # don't do anything in default case
+        model.setEmphasis(SETTINGS[emphasis])
+    if presolve != 1:
+        model.setPresolve(SETTINGS[presolve])
+    if heuristic != 1:
+        model.setHeuristics(SETTINGS[heuristic])
+    if separating != 1:
+        model.setSeparating(SETTINGS[separating])
+
+    return _clean_config(model.getParams())
+
+
+def _clean_config(config_dict):
+    config_dict.pop("limits/time", None)
+    config_dict.pop("limits/memory", None)
+    config_dict.pop("timing/enabled", None)
+    config_dict.pop("timing/reading", None)
+    config_dict.pop("timing/rareclockcheck", None)
+    config_dict.pop("timing/statistictiming", None)
+    config_dict.pop("timing/clocktype", None)
+    return config_dict
 
 
 def _makeMapCategoricalsToNumericalLevels(paramfile):
@@ -177,7 +233,8 @@ def _makeMapCategoricalsToNumericalLevels(paramfile):
     return mapCategoricalsToNumericalLevels
 
 
-def _to_batches(full_list, n_instances, n_jobs):
+def _to_batches(full_list, n_jobs):
+    n_instances = len(full_list)
     if n_instances > jl.effective_n_jobs(n_jobs=n_jobs):
 
         def chunks(lst, n):
@@ -195,6 +252,34 @@ if __name__ == "__main__":
 
 
 class TestSolveProblem(unittest.TestCase):
+    def test_two_tasks(self):
+        tasks = pd.DataFrame(
+            {
+                "instance_file": ["item_placement_1.mps.gz", "item_placement_1.mps.gz"],
+                "presolve_config_encoding": [0, 1],
+                "heuristic_config_encoding": [0, 1],
+                "separating_config_encoding": [0, 1],
+                "emphasis_config_encoding": [0, 0],
+            }
+        )
+
+        with tempfile.NamedTemporaryFile() as out_file:
+            solve_random_instances_and_periodically_write_to_file(
+                task_df=tasks,
+                n_jobs=2,
+                folder="train",
+                output_file=out_file.name,
+                time_limit=10,
+                dry_run=False,
+            )
+
+            output_df = pd.read_csv(out_file.name)
+            print(output_df.time_limit_primal_dual_integral)
+
+            assert (tasks.loc[:, tasks.columns] == output_df.loc[:, tasks.columns]).all().all()
+
+
+class TestSolveProblem_old(unittest.TestCase):
     def setUp(self):
         self.instance_path = pathlib.Path("../../instances/1_item_placement/train")
         self.instance_files = list(map(str, self.instance_path.glob("*.mps.gz")))
@@ -213,9 +298,7 @@ class TestSolveProblem(unittest.TestCase):
 
     def test_parallel_solve(self):
         retval = jl.Parallel(n_jobs=2)(
-            jl.delayed(solve_a_problem)(
-                s, config={}, time_limit=self.time_limit, dry_run=True
-            )
+            jl.delayed(solve_a_problem)(s, config={}, time_limit=self.time_limit, dry_run=True)
             for s in random.sample(self.instance_files, 2)
         )
         self.assertIsInstance(retval, list)
@@ -232,9 +315,7 @@ class TestSolveProblem(unittest.TestCase):
         actions = sampleActions(self.paramfile, n_samples=N)
 
         retval = jl.Parallel(n_jobs=2)(
-            jl.delayed(solve_a_problem)(
-                s, config=a, time_limit=self.time_limit, dry_run=True
-            )
+            jl.delayed(solve_a_problem)(s, config=a, time_limit=self.time_limit, dry_run=True)
             for s, a in zip(random.sample(self.instance_files, 2), actions)
         )
         self.assertIsInstance(retval, list)
@@ -296,9 +377,7 @@ class TestSolveProblem(unittest.TestCase):
                 dry_run=True,
             )
 
-            df = pd.read_csv(
-                tmpfile.name
-            )  # we use pandas to avoid type parsing problems
+            df = pd.read_csv(tmpfile.name)  # we use pandas to avoid type parsing problems
             self.assertIn("branching/scorefunc", df.columns)
             self.assertIn("branching/scorefunc_cat", df.columns)
             self.assertEqual(df["branching/scorefunc"].dtype, int)
