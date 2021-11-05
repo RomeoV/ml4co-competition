@@ -16,10 +16,6 @@ from tqdm import tqdm
 from data_utils.milp_data import MilpBipartiteData
 
 
-class DataFormat(enum.Enum):
-    ROMEO = enum.auto()
-    MAX = enum.auto()
-
 class Mode(enum.Enum):
     """ Whether to create train or validation split.
 
@@ -43,34 +39,31 @@ class Problem(enum.Enum):
 class MilpDataset(torch.utils.data.Dataset):
     def __init__(
         self,
-        csv_file,
+        data_dir,
         folder: Folder,
         mode: Mode,
-        data_format: DataFormat,
         problem: Problem,
         instance_dir=None,
         dry=False,
-        only_one_config: Union[bool, Tuple[int, int, int]] = False,
     ):
+        self.cols = [
+            "presolve_config_encoding",
+            "heuristic_config_encoding",
+            "separating_config_encoding",
+            "emphasis_config_encoding",
+        ]
+
         self.problem = problem
         self.mode = mode
-        self.csv_data_full = pd.read_csv(csv_file)
+        csv_files = list(pathlib.Path(data_dir).glob('*.csv'))
+        self.csv_data_full = pd.concat([
+            pd.read_csv(f) for f in csv_files
+        ], ignore_index=True)
 
         if dry:
             self.csv_data_full = self.csv_data_full[
                 self.csv_data_full.instance_file.str.match(".*_\d\d.mps")
             ].reset_index(drop=True)
-
-        if only_one_config:
-            presolve_setting, heuristic_setting, separating_setting, emphasis_setting = only_one_config
-            df = self.csv_data_full
-            df = df[
-                (df.presolve_config_encoding == presolve_setting)
-                & (df.heuristic_config_encoding == heuristic_setting)
-                & (df.separating_config_encoding == separating_setting)
-                & (df.emphasis_config_encoding == separating_setting)
-            ].reset_index(drop=True)
-            self.csv_data_full = df
 
         if mode == Mode.TRAIN:
             # Select instances ending/not ending in "0" for train/validation split
@@ -91,7 +84,7 @@ class MilpDataset(torch.utils.data.Dataset):
 
         # Preload instances into RAM for faster access.
         # Note: Problem 2 works with 64GB of total RAM.
-        # Problem 1 should be much less>
+        # Problem 1 should be much less.
         self.instance_graphs = {}
         print(f"Preloading dataset {mode.name}")
         for instance_file in tqdm(self.csv_data_full.instance_file.unique()):
@@ -106,39 +99,6 @@ class MilpDataset(torch.utils.data.Dataset):
                     edge_indices=instance_description_pkl.edge_features.indices,
                     edge_values=instance_description_pkl.edge_features.values,
                 )
-
-        if data_format is DataFormat.ROMEO:
-            self.cols = [
-                "branching/clamp",
-                "branching/lpgainnormalize",
-                "branching/midpull",
-                "branching/midpullreldomtrig",
-                "branching/preferbinary",
-                "branching/scorefac",
-                "branching/scorefunc",
-                "lp/colagelimit",
-                "lp/pricing",
-                "lp/rowagelimit",
-                "nodeselection/childsel",
-                "separating/cutagelimit",
-                "separating/maxcuts",
-                "separating/maxcutsroot",
-                "separating/minortho",
-                "separating/minorthoroot",
-                "separating/poolfreq",
-                "time_limit",
-                "initial_primal_bound",
-                "initial_dual_bound",
-            ]
-        elif data_format is DataFormat.MAX:
-            self.cols = [
-                "presolve_config_encoding",
-                "heuristic_config_encoding",
-                "separating_config_encoding",
-                "emphasis_config_encoding",
-            ]
-        else:
-            raise "Unsupported data format"
 
         self.csv_data = self.csv_data_full[self.cols]
 
