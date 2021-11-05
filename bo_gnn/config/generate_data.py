@@ -67,7 +67,7 @@ def parse_args():
         help="Solver time limit (in seconds).",
         default=-1,
         type=int,
-        requried=False,
+        required=False,
     )
     parser.add_argument("-d", "--dry_run", help="Dry run.", action="store_true")
 
