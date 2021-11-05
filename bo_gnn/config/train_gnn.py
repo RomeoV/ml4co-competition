@@ -1,3 +1,4 @@
+import argparse
 import threading
 import re
 import os
@@ -37,19 +38,28 @@ class MilpGNNTrainable(pl.LightningModule):
         n_gnn_layers,
         gnn_hidden_dim,
         ensemble_size,
-        only_one_config=False,
     ):
         super().__init__()
         self.save_hyperparameters()
 
         self.model_ensemble = torch.nn.ModuleList(
-            [ConfigPerformanceRegressor(config_dim=config_dim, n_gnn_layers=n_gnn_layers, gnn_hidden_dim=gnn_hidden_dim) for i in range(ensemble_size)]
+            [
+                ConfigPerformanceRegressor(
+                    config_dim=config_dim,
+                    n_gnn_layers=n_gnn_layers,
+                    gnn_hidden_dim=gnn_hidden_dim,
+                )
+                for i in range(ensemble_size)
+            ]
         )
 
     def forward(self, x, single_instance=False):
         instance_batch, config_batch = x  # we have to clone those
         predictions = torch.stack(
-            [model.forward((instance_batch.clone(), config_batch.clone()), single_instance=single_instance) for model in self.model_ensemble],
+            [
+                model.forward((instance_batch.clone(), config_batch.clone()), single_instance=single_instance)
+                for model in self.model_ensemble
+            ],
             axis=1,
         )
         mean_mu = predictions[:, :, 0:1].mean(axis=1)
@@ -76,7 +86,7 @@ class MilpGNNTrainable(pl.LightningModule):
         sigs = pred_var.mean(axis=1).sqrt()
         self.log_dict(
             {
-                "train_loss": loss,
+                "train_nll_loss": nll_loss,
                 "train_sigmas": sigs,
                 "train_l1": l1_loss,
                 "train_l2": l2_loss,
@@ -85,7 +95,7 @@ class MilpGNNTrainable(pl.LightningModule):
             on_epoch=True,
             prog_bar=True,
         )
-        return loss
+        return l2_loss
 
     def validation_step(self, batch, batch_idx):
         instance_batch, config_batch, label_batch = batch
@@ -108,33 +118,52 @@ class MilpGNNTrainable(pl.LightningModule):
     def configure_optimizers(self):
         if self.hparams.optimizer.lower() == "adam":
             optimizer = torch.optim.Adam(self.parameters(), lr=self.hparams.initial_lr)
+        if self.hparams.optimizer.lower() == "adamw":
+            optimizer = torch.optim.AdamW(self.parameters(), lr=self.hparams.initial_lr, weight_decay=1e-4)
         elif self.hparams.optimizer.lower() == "sgd":
             optimizer = torch.optim.SGD(self.parameters(), lr=self.hparams.initial_lr)
         elif self.hparams.optimizer.lower() == "rmsprop":
-            optimizer = torch.optim.RMSprop(
-                self.parameters(), lr=self.hparams.initial_lr
-            )
+            optimizer = torch.optim.RMSprop(self.parameters(), lr=self.hparams.initial_lr)
         lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer, "min", verbose=True, min_lr=1e-6
+            optimizer, "min", verbose=True, min_lr=1e-6, factor=0.5
         )
         return {
             "optimizer": optimizer,
             "lr_scheduler": lr_scheduler,
-            "monitor": "train_loss",
+            "monitor": "train_nll_loss",
         }
 
 
 def _get_current_git_hash():
-    retval = subprocess.run(
-        ["git", "rev-parse", "HEAD"], capture_output=True, check=True
-    )
+    retval = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, check=True)
     git_hash = retval.stdout.decode("utf-8").strip()
     return git_hash
 
 
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-r",
+        "--run",
+        help="ID of current run (or experiment).",
+        type=int,
+    )
+    parser.add_argument(
+        "-t",
+        "--max_time",
+        help="Time after which training will be aborted, in weird format, e.g. '00:00:15:00' for 15 minutes.",
+        default=None,
+        type=str,
+    )
+
+    args = parser.parse_args()
+    return args
+
+
 def main():
+    args = parse_args()
     problem = Problem.ONE
-    dry = subprocess.run(['hostname'], capture_output=True).stdout.decode()[:3] != "eu-"
+    dry = subprocess.run(["hostname"], capture_output=True).stdout.decode()[:3] != "eu-"
 
     model = MilpGNNTrainable(
         config_dim=4,
@@ -146,17 +175,14 @@ def main():
         ensemble_size=3,
         git_hash=_get_current_git_hash(),
         problem=problem,
-        only_one_config=False,
     )
     data_train = DataLoader(
         MilpDataset(
             "data/exhaustive_dataset_20_configs/1_item_placement_results_9898.csv",
             folder=Folder.TRAIN,
             mode=Mode.TRAIN,
-            data_format=DataFormat.MAX,
             problem=problem,
             dry=dry,
-            only_one_config=False,
             instance_dir=f"{'../..' if dry else ''}/instances/{problem.value}/{Folder.TRAIN.value}",
         ),
         shuffle=True,
@@ -165,17 +191,27 @@ def main():
         num_workers=8 if not dry else 0,
         pin_memory=torch.cuda.is_available() and not dry,
     )
-    configs_in_dataset = data_train.dataset.csv_data.loc[:, ["presolve_config_encoding", "heuristic_config_encoding", "separating_config_encoding", "emphasis_config_encoding"]].apply(tuple, axis=1).unique()
+    configs_in_dataset = (
+        data_train.dataset.csv_data.loc[
+            :,
+            [
+                "presolve_config_encoding",
+                "heuristic_config_encoding",
+                "separating_config_encoding",
+                "emphasis_config_encoding",
+            ],
+        ]
+        .apply(tuple, axis=1)
+        .unique()
+    )
 
     data_valid = DataLoader(
         MilpDataset(
             "data/exhaustive_dataset_20_configs/1_item_placement_results_9898.csv",
             folder=Folder.TRAIN,
-            data_format=DataFormat.MAX,
             mode=Mode.VALID,
             problem=problem,
             dry=dry,
-            only_one_config=False,
             instance_dir=f"{'../..' if dry else ''}/instances/{problem.value}/{Folder.TRAIN.value}",
         ),
         shuffle=False,
@@ -187,14 +223,34 @@ def main():
     # TODO clean this up
 
     trainer = Trainer(
-        max_epochs=1000,
         gpus=1 if torch.cuda.is_available() else 0,
         callbacks=[
-            EvaluatePredictedParametersCallback(configs=configs_in_dataset, instance_dir=f"{'../..' if dry else ''}/instances/{problem.value}/{Folder.TRAIN.value}"),
+            EvaluatePredictedParametersCallback(
+                configs=configs_in_dataset,
+                instance_dir=f"{'../..' if dry else ''}/instances/{problem.value}/{Folder.TRAIN.value}",
+            ),
             pytorch_lightning.callbacks.LearningRateMonitor(logging_interval="epoch"),
+            pytorch_lightning.callbacks.ModelCheckpoint(save_last=True),
         ],
+        default_root_dir=os.path.join("runs", f"run{args.run_id:03d}"),
+        max_time=args.max_time,
     )
-    trainer.fit(model, train_dataloaders=data_train, val_dataloaders=data_valid)
+    latest_checkpoint_path = _get_latest_checkpoint_path(args.run_id)
+    trainer.fit(model, train_dataloaders=data_train, val_dataloaders=data_valid, ckpt_path=latest_checkpoint_path)
+
+
+def _get_latest_checkpoint_path(run_id):
+    """Automatically get's the latest checkpoint called 'last.ckpt' from lightning logs. Returns 'None' if not available."""
+
+    def sort_by_num(s):
+        return re.search("[0-9]+", s).group(0)
+
+    run_path = os.path.join("runs", f"run{run_id:03d}")
+    if not os.path.isdir(os.path.join(run_path, "lightning_logs")):
+        return None
+    latest_version = sorted(os.listdir(os.path.join(run_path, "lightning_logs")), key=sort_by_num)[-1]
+    checkpoint_path = os.path.join(latest_version, "checkpoints", "last.ckpt")
+    return checkpoint_path
 
 
 if __name__ == "__main__":
