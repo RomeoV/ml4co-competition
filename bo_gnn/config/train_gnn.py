@@ -21,7 +21,7 @@ from pytorch_lightning import Trainer
 from models.baseline import ConfigPerformanceRegressor
 from models.sanity_check import SanityCheckGNNModel
 from models.callbacks import EvaluatePredictedParametersCallback
-from data_utils.dataset import MilpDataset, Folder, DataFormat, Problem, Mode
+from data_utils.dataset import MilpDataset, Folder, Problem, Mode
 from data_utils.milp_data import MilpBipartiteData
 from torch_geometric.data import Data, DataLoader, Batch
 
@@ -80,7 +80,7 @@ class MilpGNNTrainable(pl.LightningModule):
         pred_mu = pred[:, :, 0:1]
         pred_var = pred[:, :, 1:2]
 
-        loss = F.gaussian_nll_loss(pred_mu, label_batch, pred_var)
+        nll_loss = F.gaussian_nll_loss(pred_mu, label_batch, pred_var)
         l1_loss = F.l1_loss(pred_mu, label_batch)
         l2_loss = F.mse_loss(pred_mu, label_batch)
         sigs = pred_var.mean(axis=1).sqrt()
@@ -144,16 +144,16 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "-r",
-        "--run",
+        "--run_id",
         help="ID of current run (or experiment).",
         type=int,
     )
     parser.add_argument(
         "-t",
         "--max_time",
-        help="Time after which training will be aborted, in weird format, e.g. '00:00:15:00' for 15 minutes.",
+        help="Time after which training will be aborted in seconds.",
         default=None,
-        type=str,
+        type=float,
     )
 
     args = parser.parse_args()
@@ -162,8 +162,10 @@ def parse_args():
 
 def main():
     args = parse_args()
+    root_dir = os.path.join("runs", f"run{args.run_id:03d}")
     problem = Problem.ONE
-    dry = subprocess.run(["hostname"], capture_output=True).stdout.decode()[:3] != "eu-"
+    # dry = subprocess.run(["hostname"], capture_output=True).stdout.decode()[:3] != "eu-"
+    dry = False
 
     model = MilpGNNTrainable(
         config_dim=4,
@@ -171,14 +173,14 @@ def main():
         initial_lr=5e-4,
         batch_size=64 if not dry else 4,
         n_gnn_layers=4,
-        gnn_hidden_dim=8,
+        gnn_hidden_dim=64,
         ensemble_size=3,
         git_hash=_get_current_git_hash(),
         problem=problem,
     )
     data_train = DataLoader(
         MilpDataset(
-            "data/exhaustive_dataset_20_configs/1_item_placement_results_9898.csv",
+            os.path.join(root_dir, "data"),
             folder=Folder.TRAIN,
             mode=Mode.TRAIN,
             problem=problem,
@@ -207,7 +209,7 @@ def main():
 
     data_valid = DataLoader(
         MilpDataset(
-            "data/exhaustive_dataset_20_configs/1_item_placement_results_9898.csv",
+            os.path.join(root_dir, "data"),
             folder=Folder.TRAIN,
             mode=Mode.VALID,
             problem=problem,
@@ -220,7 +222,6 @@ def main():
         num_workers=8 if not dry else 0,
         pin_memory=torch.cuda.is_available() and not dry,
     )
-    # TODO clean this up
 
     trainer = Trainer(
         gpus=1 if torch.cuda.is_available() else 0,
@@ -232,11 +233,11 @@ def main():
             pytorch_lightning.callbacks.LearningRateMonitor(logging_interval="epoch"),
             pytorch_lightning.callbacks.ModelCheckpoint(save_last=True),
         ],
-        default_root_dir=os.path.join("runs", f"run{args.run_id:03d}"),
-        max_time=args.max_time,
+        default_root_dir=root_dir,
+        max_time={"seconds": args.max_time},
+        resume_from_checkpoint=_get_latest_checkpoint_path(args.run_id),
     )
-    latest_checkpoint_path = _get_latest_checkpoint_path(args.run_id)
-    trainer.fit(model, train_dataloaders=data_train, val_dataloaders=data_valid, ckpt_path=latest_checkpoint_path)
+    trainer.fit(model, train_dataloaders=data_train, val_dataloaders=data_valid)
 
 
 def _get_latest_checkpoint_path(run_id):
@@ -249,7 +250,7 @@ def _get_latest_checkpoint_path(run_id):
     if not os.path.isdir(os.path.join(run_path, "lightning_logs")):
         return None
     latest_version = sorted(os.listdir(os.path.join(run_path, "lightning_logs")), key=sort_by_num)[-1]
-    checkpoint_path = os.path.join(latest_version, "checkpoints", "last.ckpt")
+    checkpoint_path = os.path.join(run_path, "lightning_logs", latest_version, "checkpoints", "last.ckpt")
     return checkpoint_path
 
 

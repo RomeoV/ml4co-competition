@@ -31,16 +31,19 @@ from config_utils import sampleActions, getParamsFromFile
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "-t",
+        "-i",
         "--task_file",
         help="CSV file with tasks to solve",
-        type=int,
+        type=str,
+        required=True,
     )
     parser.add_argument(
         "-j",
         "--num_jobs",
         help="Number of jobs at a time (e.g. 1 per thread).",
         type=int,
+        default=-1,
+        required=False,
     )
     parser.add_argument(
         "-f",
@@ -48,6 +51,8 @@ def parse_args():
         help="Instance folder to evaluate.",
         type=str,
         choices=("train", "valid"),
+        default="train",
+        required=False,
     )
     parser.add_argument(
         "-o",
@@ -55,6 +60,7 @@ def parse_args():
         help="Output csv file",
         default="data/output.csv",
         type=str,
+        required=True,
     )
     parser.add_argument(
         "-t",
