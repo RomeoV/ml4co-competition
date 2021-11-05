@@ -9,6 +9,7 @@ import time
 import numpy as np
 import pandas as pd
 from data_utils.milp_data import MilpBipartiteData
+from data_utils.dataset import Problem
 from train_gnn import MilpGNNTrainable
 from torch_geometric.data import Batch
 
@@ -113,7 +114,23 @@ def main():
     args = parse_args()
 
     device = 'cuda' if torch.cuda.is_available else 'cpu'
-    model = MilpGNNTrainable.load_from_checkpoint(_get_latest_checkpoint_path(args.run_id)).to(device)
+    latest_checkpoint_path = _get_latest_checkpoint_path(args.run_id)
+    if latest_checkpoint_path:
+        model = MilpGNNTrainable.load_from_checkpoint().to(device)
+    else:
+        # if there isn't a model yet, we just initialize a random one and "sample" from this one
+        # this should be pretty close to just randomly sampling the config space
+        model = MilpGNNTrainable(
+            config_dim=4,
+            optimizer="RMSprop",
+            initial_lr=5e-4,
+            batch_size=64 if not dry else 4,
+            n_gnn_layers=4,
+            gnn_hidden_dim=64,
+            ensemble_size=3,
+            git_hash=_get_current_git_hash(),
+            problem=Problem.ONE,
+        )
     model.eval()
 
     print(f"At t={time.time()-t0} start to compute calibration.")
@@ -143,8 +160,9 @@ def main():
                 "emphasis_config_encoding": map(operator.itemgetter(3), chosen_configs),
             }
         )
-        out_dir = os.path.join("runs", f"run{args.run_id:03d}", "tasks", f"gen_input{args.iter:04d}", f"task{t:02d}.csv")
-        df.to_csv(out_dir, index=False)
+        out_dir = os.path.join("runs", f"run{args.run_id:03d}", "tasks", f"gen_input{args.iter:04d}")
+        os.makedirs(out_dir, exist_ok=True)
+        df.to_csv(os.path.join(out_dir, f"task{t:02d}.csv"), index=False)
 
 
 if __name__ == "__main__":
