@@ -1,3 +1,4 @@
+import pickle
 import torch
 import numpy as np
 
@@ -40,3 +41,14 @@ class MilpBipartiteData(Data):
             return torch.tensor([1], dtype=torch.long)
         else:
             return super().__inc__(key, value)
+
+    @staticmethod
+    def load_from_picklefile(path):
+        with open(path, "rb") as infile:
+            instance_description_pkl = pickle.load(infile)
+            return MilpBipartiteData(
+                var_feats=instance_description_pkl.variable_features,
+                cstr_feats=instance_description_pkl.constraint_features,
+                edge_indices=instance_description_pkl.edge_features.indices,
+                edge_values=instance_description_pkl.edge_features.values,
+            )
