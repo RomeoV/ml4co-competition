@@ -31,10 +31,10 @@ from config_utils import sampleActions, getParamsFromFile
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "-t",
-        "--task_file",
-        help="CSV file with tasks to solve",
-        type=str,
+        "-r",
+        "--run_id",
+        help="ID of current run (or experiment).",
+        type=int,
         required=True,
     )
     parser.add_argument(
@@ -43,6 +43,13 @@ def parse_args():
         help="Iter num of current run (or experiment).",
         type=int,
         required=True
+    )
+    parser.add_argument(
+        "-t",
+        "--task_num",
+        help="CSV file with tasks to solve",
+        type=int,
+        required=True,
     )
     parser.add_argument(
         "-j",
@@ -65,9 +72,8 @@ def parse_args():
         "-T",
         "--time_limit",
         help="Solver time limit (in seconds).",
-        default=-1,
-        type=int,
-        required=False,
+        type=float,
+        required=True,
     )
     parser.add_argument("-d", "--dry_run", help="Dry run.", action="store_true")
 
@@ -78,7 +84,9 @@ def parse_args():
 def main():
     args = parse_args()
 
-    task_df = pd.read_csv(args.task_file)
+    task_file = os.path.join("runs", f"run{args.run_id:03d}", "tasks", f"gen_input{args.iter:04d}", f"task{args.task_num:02d}.csv")
+    task_df = pd.read_csv(task_file)
+    os.makedirs(os.path.join("runs", f"run{args.run_id:03d}", "data"), exist_ok=True)
     output_file = os.path.join("runs", f"run{args.run_id:03d}", "data", f"dataset_iter{args.iter:04d}.csv")
 
     solve_random_instances_and_periodically_write_to_file(

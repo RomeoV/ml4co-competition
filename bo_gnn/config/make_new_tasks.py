@@ -6,6 +6,7 @@ import pathlib
 import torch
 import operator
 import time
+import subprocess
 import numpy as np
 import pandas as pd
 from data_utils.milp_data import MilpBipartiteData
@@ -21,24 +22,28 @@ def parse_args():
         "--run_id",
         help="ID of current run (or experiment).",
         type=int,
+        required=True,
     )
     parser.add_argument(
         "-i",
         "--iter",
         help="Iter num of current run (or experiment).",
         type=int,
+        required=True,
     )
     parser.add_argument(
         "-t",
         "--num_tasks",
         help="Number of task files (one task per bsub).",
         type=int,
+        required=True,
     )
     parser.add_argument(
         "-j",
         "--num_jobs",
         help="Number of jobs, i.e. problems per task.",
         type=int,
+        required=True,
     )
 
     return parser.parse_args()
@@ -67,7 +72,7 @@ def _sample_random_instance_config_results(model, N):
         (pred2, mu2, sig_ale2, sig_epi2), (random_inst2, random_conf2) = _sample_random_instance_config_results(model, N-64)
         return (torch.cat((pred1, pred2), axis=0), torch.cat((mu1, mu2), axis=0), torch.cat((sig_ale1, sig_ale2), axis=0), torch.cat((sig_epi1, sig_epi2), axis=0)), (random_inst1 + random_inst2, random_conf1 + random_conf2)
     else:
-        instance_files = list(map(str, pathlib.Path('/instances/1_item_placement/train').glob("*.pkl")))
+        instance_files = list(map(str, pathlib.Path('/instances/1_item_placement/train').glob("*.mps.gz")))
         random_choice_of_instances = random.choices(instance_files, k=N)
         random_choice_of_configs = [(random.randint(0, 3), random.randint(0, 3), 1, 0) for _ in range(N)]
 
@@ -99,6 +104,11 @@ def _make_batches(full_data, batch_size):
 
     return batched_data
 
+def _get_current_git_hash():
+    retval = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, check=True)
+    git_hash = retval.stdout.decode("utf-8").strip()
+    return git_hash
+
 
 def calibrate_epistemic_uncertainty(model):
     CALIBRATION_TARGET = 0.5
@@ -116,7 +126,7 @@ def main():
     device = 'cuda' if torch.cuda.is_available else 'cpu'
     latest_checkpoint_path = _get_latest_checkpoint_path(args.run_id)
     if latest_checkpoint_path:
-        model = MilpGNNTrainable.load_from_checkpoint().to(device)
+        model = MilpGNNTrainable.load_from_checkpoint(latest_checkpoint_path).to(device)
     else:
         # if there isn't a model yet, we just initialize a random one and "sample" from this one
         # this should be pretty close to just randomly sampling the config space
@@ -124,13 +134,13 @@ def main():
             config_dim=4,
             optimizer="RMSprop",
             initial_lr=5e-4,
-            batch_size=64 if not dry else 4,
+            batch_size=64,
             n_gnn_layers=4,
             gnn_hidden_dim=64,
             ensemble_size=3,
             git_hash=_get_current_git_hash(),
             problem=Problem.ONE,
-        )
+        ).to(device)
     model.eval()
 
     print(f"At t={time.time()-t0} start to compute calibration.")

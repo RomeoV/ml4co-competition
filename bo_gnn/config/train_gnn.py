@@ -147,6 +147,7 @@ def parse_args():
         "--run_id",
         help="ID of current run (or experiment).",
         type=int,
+        required=True,
     )
     parser.add_argument(
         "-t",
@@ -154,6 +155,7 @@ def parse_args():
         help="Time after which training will be aborted in seconds.",
         default=None,
         type=float,
+        required=False,
     )
 
     args = parser.parse_args()
