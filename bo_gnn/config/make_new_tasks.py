@@ -22,6 +22,12 @@ def parse_args():
         type=int,
     )
     parser.add_argument(
+        "-i",
+        "--iter",
+        help="Iter num of current run (or experiment).",
+        type=int,
+    )
+    parser.add_argument(
         "-t",
         "--num_tasks",
         help="Number of task files (one task per bsub).",
@@ -32,12 +38,6 @@ def parse_args():
         "--num_jobs",
         help="Number of jobs, i.e. problems per task.",
         type=int,
-    )
-    parser.add_argument(
-        "-o",
-        "--out_dir",
-        help="Where to put the task files.",
-        type=str,
     )
 
     return parser.parse_args()
@@ -143,7 +143,8 @@ def main():
                 "emphasis_config_encoding": map(operator.itemgetter(3), chosen_configs),
             }
         )
-        df.to_csv(os.path.join(args.out_dir, f"task{t:02d}.csv"), index=False)
+        out_dir = os.path.join("runs", f"run{args.run_id:03d}", "tasks", f"gen_input{args.iter:04d}", f"task{t:02d}.csv")
+        df.to_csv(out_dir, index=False)
 
 
 if __name__ == "__main__":

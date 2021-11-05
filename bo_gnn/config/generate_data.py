@@ -31,11 +31,18 @@ from config_utils import sampleActions, getParamsFromFile
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "-i",
+        "-t",
         "--task_file",
         help="CSV file with tasks to solve",
         type=str,
         required=True,
+    )
+    parser.add_argument(
+        "-i",
+        "--iter",
+        help="Iter num of current run (or experiment).",
+        type=int,
+        required=True
     )
     parser.add_argument(
         "-j",
@@ -55,19 +62,12 @@ def parse_args():
         required=False,
     )
     parser.add_argument(
-        "-o",
-        "--output_file",
-        help="Output csv file",
-        default="data/output.csv",
-        type=str,
-        required=True,
-    )
-    parser.add_argument(
-        "-t",
+        "-T",
         "--time_limit",
         help="Solver time limit (in seconds).",
-        default=5 * 60,
+        default=-1,
         type=int,
+        requried=False,
     )
     parser.add_argument("-d", "--dry_run", help="Dry run.", action="store_true")
 
@@ -79,12 +79,13 @@ def main():
     args = parse_args()
 
     task_df = pd.read_csv(args.task_file)
+    output_file = os.path.join("runs", f"run{args.run_id:03d}", "data", f"dataset_iter{args.iter:04d}.csv")
 
     solve_random_instances_and_periodically_write_to_file(
         task_df=task_df,
         n_jobs=args.num_jobs,
         folder=args.folder,
-        output_file=args.output_file,
+        output_file=output_file,
         time_limit=args.time_limit,
         dry_run=args.dry_run,
     )
