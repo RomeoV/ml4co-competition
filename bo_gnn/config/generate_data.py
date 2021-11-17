@@ -102,7 +102,7 @@ def main():
 def solve_random_instances_and_periodically_write_to_file(
     task_df, output_file, folder, n_jobs=-1, time_limit=5 * 60, dry_run=True
 ):
-    instance_path = pathlib.Path(f"../../instances/1_item_placement/{folder}")
+    instance_path = pathlib.Path(f"/instances/1_item_placement/{folder}")
     instance_files = list(map(str, instance_path.glob("*.mps.gz")))
 
     instances = [os.path.join(instance_path, f) for f in task_df.instance_file]
