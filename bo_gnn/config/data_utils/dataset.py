@@ -33,7 +33,7 @@ class Folder(enum.Enum):
 class Problem(enum.Enum):
     ONE = "1_item_placement"
     TWO = "2_load_balancing"
-    THREE = "3_anonymoud"
+    THREE = "3_anonymous"
 
 
 class MilpDataset(torch.utils.data.Dataset):
@@ -79,7 +79,7 @@ class MilpDataset(torch.utils.data.Dataset):
             self.instance_path = pathlib.Path(instance_dir)
         else:
             self.instance_path = pathlib.Path(
-                f"../../instances/{problem.value}/{folder.value}"
+                f"/instances/{problem.value}/{folder.value}"
             )
 
         # Preload instances into RAM for faster access.
