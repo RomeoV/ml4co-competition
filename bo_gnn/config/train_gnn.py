@@ -7,6 +7,7 @@ import pickle
 import pathlib
 import itertools
 import scipy
+import datetime
 import subprocess
 from typing import Tuple
 
@@ -238,7 +239,7 @@ def main():
             pytorch_lightning.callbacks.ModelCheckpoint(save_last=True),
         ],
         default_root_dir=root_dir,
-        max_time={"seconds": args.max_time},
+        max_time=datetime.timedelta(seconds=args.max_time),
         resume_from_checkpoint=_get_latest_checkpoint_path(args.run_id),
     )
     trainer.fit(model, train_dataloaders=data_train, val_dataloaders=data_valid)
