@@ -143,17 +143,17 @@ def main():
         ).to(device)
     model.eval()
 
-    print(f"At t={time.time()-t0} start to compute calibration.")
+    print(f"At t={time.time()-t0:.3f} start to compute calibration.")
     lam = calibrate_epistemic_uncertainty(model)
-    print(f"At t={time.time()-t0} end calibration.")
+    print(f"At t={time.time()-t0:.3f} end calibration.")
 
     for t in range(args.num_tasks):
-        print(f"task {t}: At t={time.time()-t0} start predictions.")
+        print(f"task {t}: At t={time.time()-t:.3f} start predictions.")
         (_predictions, mean_mu, _mean_var, epi_var), (
             random_choice_of_instances,
             random_choice_of_configs,
         ) = _sample_random_instance_config_results(model, 512)
-        print(f"task {t}: At t={time.time()-t0} end predictions.")
+        print(f"task {t}: At t={time.time()-t:.3f} end predictions.")
 
         print()
         best_indices = torch.argsort(mean_mu.flatten() - lam * epi_var)[: args.num_jobs]
