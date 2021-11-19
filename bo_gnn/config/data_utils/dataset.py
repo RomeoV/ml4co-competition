@@ -115,7 +115,7 @@ class MilpDataset(torch.utils.data.Dataset):
             idx, ["instance_file", "time_limit_primal_dual_integral"]
         ]
         mu, sig = self.data_mu.loc[instance_file][0], self.data_sig.loc[instance_file][0]
-        primal_dual_int_standarized = torch.tensor([(primal_dual_int - mu) / sig], dtype=torch.float32)
+        primal_dual_int_standarized = torch.tensor([(primal_dual_int - mu) / 1.], dtype=torch.float32)
         config_arr = torch.tensor(self.csv_data.loc[idx], dtype=torch.float32)
         instance_data = self.instance_graphs[instance_file]
         return instance_data, config_arr, primal_dual_int_standarized

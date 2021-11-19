@@ -64,7 +64,8 @@ def _get_latest_checkpoint_path(run_id):
 
 
 def _sample_random_instance_config_results(model, N):
-    device = 'cuda' if torch.cuda.is_available else 'cpu'
+    # device = 'cuda' if subprocess.run(["hostname"], capture_output=True).stdout.decode()[:3] != "eu-" else 'cpu'
+    device = 'cpu'
     if N == 0:
         return (torch.tensor([]),)*4, ([], [])
     elif N > 64:
@@ -123,7 +124,8 @@ def main():
     t0 = time.time()
     args = parse_args()
 
-    device = 'cuda' if torch.cuda.is_available else 'cpu'
+    # device = 'cuda' if torch.cuda.is_available else 'cpu'
+    device = 'cpu'
     latest_checkpoint_path = _get_latest_checkpoint_path(args.run_id)
     if latest_checkpoint_path:
         model = MilpGNNTrainable.load_from_checkpoint(latest_checkpoint_path).to(device)
