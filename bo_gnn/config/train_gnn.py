@@ -31,6 +31,7 @@ class MilpGNNTrainable(pl.LightningModule):
         self,
         config_dim,
         optimizer,
+        weight_decay,
         initial_lr,
         batch_size,
         git_hash,
@@ -117,13 +118,13 @@ class MilpGNNTrainable(pl.LightningModule):
 
     def configure_optimizers(self):
         if self.hparams.optimizer.lower() == "adam":
-            optimizer = torch.optim.Adam(self.parameters(), lr=self.hparams.initial_lr)
+            optimizer = torch.optim.Adam(self.parameters(), lr=self.hparams.initial_lr, weight_decay=self.hparams.weight_decay)
         if self.hparams.optimizer.lower() == "adamw":
-            optimizer = torch.optim.AdamW(self.parameters(), lr=self.hparams.initial_lr, weight_decay=1e-4)
+            optimizer = torch.optim.AdamW(self.parameters(), lr=self.hparams.initial_lr, weight_decay=self.hparams.weight_decay)
         elif self.hparams.optimizer.lower() == "sgd":
-            optimizer = torch.optim.SGD(self.parameters(), lr=self.hparams.initial_lr)
+            optimizer = torch.optim.SGD(self.parameters(), lr=self.hparams.initial_lr, weight_decay=self.hparams.weight_decay)
         elif self.hparams.optimizer.lower() == "rmsprop":
-            optimizer = torch.optim.RMSprop(self.parameters(), lr=self.hparams.initial_lr)
+            optimizer = torch.optim.RMSprop(self.parameters(), lr=self.hparams.initial_lr, weight_decay=self.hparams.weight_decay)
         lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             optimizer, "min", verbose=True, min_lr=1e-6, factor=0.5
         )
@@ -172,6 +173,7 @@ def main():
     model = MilpGNNTrainable(
         config_dim=4,
         optimizer="RMSprop",
+        weight_decay=1e-3,
         initial_lr=5e-4,
         batch_size=64 if not dry else 4,
         n_gnn_layers=4,
