@@ -213,7 +213,7 @@ def _config_encoding_to_dict(config_encoding):
     model = pyscipopt.Model()
     # we pick 'emphasis' first as it overrides a lot of other options
     if emphasis != 0:  # don't do anything in default case
-        model.setEmphasis(SETTINGS[emphasis])
+        model.setEmphasis(EMPHASIS_SETTINGS[emphasis])
     if presolve != 1:
         model.setPresolve(SETTINGS[presolve])
     if heuristic != 1:
