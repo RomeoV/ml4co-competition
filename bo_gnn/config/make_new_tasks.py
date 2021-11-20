@@ -65,7 +65,7 @@ def _get_latest_checkpoint_path(run_id):
 
 def _sample_random_instance_config_results(model, N):
     # device = 'cuda' if subprocess.run(["hostname"], capture_output=True).stdout.decode()[:3] != "eu-" else 'cpu'
-    device = 'cpu'
+    device = 'cuda'
     if N == 0:
         return (torch.tensor([]),)*4, ([], [])
     elif N > 64:
@@ -75,7 +75,7 @@ def _sample_random_instance_config_results(model, N):
     else:
         instance_files = list(map(str, pathlib.Path('/instances/1_item_placement/train').glob("*.mps.gz")))
         random_choice_of_instances = random.choices(instance_files, k=N)
-        random_choice_of_configs = [(random.randint(0, 3), random.randint(0, 3), 1, 0) for _ in range(N)]
+        random_choice_of_configs = [(random.randint(0, 3), random.randint(0, 3), (random.randint(0, 3)), 0) for _ in range(N)]
 
         instance_dir = "/instances/1_item_placement/train"
         instance_batch = Batch.from_data_list(
@@ -125,7 +125,7 @@ def main():
     args = parse_args()
 
     # device = 'cuda' if torch.cuda.is_available else 'cpu'
-    device = 'cpu'
+    device = 'cuda'
     latest_checkpoint_path = _get_latest_checkpoint_path(args.run_id)
     if latest_checkpoint_path:
         model = MilpGNNTrainable.load_from_checkpoint(latest_checkpoint_path).to(device)
@@ -135,6 +135,7 @@ def main():
         model = MilpGNNTrainable(
             config_dim=4,
             optimizer="RMSprop",
+            weight_decay=1e-3,
             initial_lr=5e-4,
             batch_size=64,
             n_gnn_layers=4,
@@ -150,12 +151,12 @@ def main():
     print(f"At t={time.time()-t0:.3f} end calibration.")
 
     for t in range(args.num_tasks):
-        print(f"task {t}: At t={time.time()-t:.3f} start predictions.")
+        print(f"task {t}: At t={time.time()-t0:.3f} start predictions.")
         (_predictions, mean_mu, _mean_var, epi_var), (
             random_choice_of_instances,
             random_choice_of_configs,
         ) = _sample_random_instance_config_results(model, 512)
-        print(f"task {t}: At t={time.time()-t:.3f} end predictions.")
+        print(f"task {t}: At t={time.time()-t0:.3f} end predictions.")
 
         print()
         best_indices = torch.argsort(mean_mu.flatten() - lam * epi_var)[: args.num_jobs]
@@ -172,7 +173,7 @@ def main():
                 "emphasis_config_encoding": map(operator.itemgetter(3), chosen_configs),
             }
         )
-        out_dir = os.path.join("runs", f"run{args.run_id:03d}", "tasks", f"gen_input{args.iter:04d}")
+        out_dir = os.path.join("runs", f"run{args.run_id:03d}", "tasks", f"gen_input{args.iter+1:04d}")
         os.makedirs(out_dir, exist_ok=True)
         df.to_csv(os.path.join(out_dir, f"task{t:02d}.csv"), index=False)
 
