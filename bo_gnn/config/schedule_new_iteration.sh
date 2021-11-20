@@ -13,7 +13,7 @@ if [[ $2 -ne 0 ]]; then
     done
 
     ### LAUNCH GNN TRAINING ON GPU JOB, THEN (AFTER FINISHING) LAUNCH TASK CREATOR ON THE SAME NODE
-    bsub -w "done(gen_data_job_0)&&done(gen_data_job_1)&&done(gen_data_job_2)&&done(gen_data_job_3)&&done(gen_data_job_4)" \
+    bsub -w "done(gen_data_job_0)&&done(gen_data_job_1)&&done(gen_data_job_2)&&done(gen_data_job_3)&&done(gen_data_job_4)&&done(gen_data_job_5)&&done(gen_data_job_6)&&done(gen_data_job_7)&&done(gen_data_job_8)&&done(gen_data_job_9)" \
         -J train_gnn_job \
         -G ls_krausea -n 3 -W 0:15 -R singularity -R "rusage[ngpus_excl_p=1,mem=4000]" -R "select[gpu_mtotal0>=30000]" \
         singularity exec --bind /cluster/home/rvalentin/Documents/ml4co-competition:/ml4co,/cluster/project/infk/krause/rvalentin/instances:/instances \
