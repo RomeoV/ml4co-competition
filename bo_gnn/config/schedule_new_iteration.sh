@@ -18,7 +18,7 @@ if [[ $2 -ne 0 ]]; then
         -G ls_krausea -n 3 -W 0:15 -R singularity -R "rusage[ngpus_excl_p=1,mem=4000]" -R "select[gpu_mtotal0>=30000]" \
         singularity exec --bind /cluster/home/rvalentin/Documents/ml4co-competition:/ml4co,/cluster/project/infk/krause/rvalentin/instances:/instances \
         --pwd /ml4co/bo_gnn/config --nv /cluster/project/infk/krause/rvalentin/singularity-images/ml4co-gpu.sif \
-        python train_gnn.py -r $1 -t 150
+        python train_gnn.py -r $1 -t $((150 * $2))
 else
     ### IN THE FIRST ITERATION, WE SAMPLE FROM A RANDOM MODEL
     bsub -J train_gnn_job echo "In iteration 0 we don't need to train yet"
