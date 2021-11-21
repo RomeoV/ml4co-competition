@@ -26,7 +26,7 @@ fi
 
 bsub -w "done(train_gnn_job)" \
     -J make_new_tasks_job \
-    -G ls_krausea -n 3 -W 0:15 -R singularity -R "rusage[ngpus_excl_p=1,mem=4000]" -R "select[gpu_mtotal0>=30000]" \
+    -G ls_krausea -n 10 -W 0:15 -R singularity -R "rusage[ngpus_excl_p=1,mem=4000]" -R "select[gpu_mtotal0>=30000]" \
     singularity exec --bind /cluster/home/rvalentin/Documents/ml4co-competition:/ml4co,/cluster/project/infk/krause/rvalentin/instances:/instances,/cluster/project/infk/krause/rvalentin/runs:/runs \
     --pwd /ml4co/bo_gnn/config --nv /cluster/project/infk/krause/rvalentin/singularity-images/ml4co-gpu.sif \
     python make_new_tasks.py -r $1 -i $2 -t 10 -j 20

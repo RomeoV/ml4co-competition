@@ -37,6 +37,7 @@ def parse_args():
 
 
 def main():
+    torch.multiprocessing.set_sharing_strategy('file_system')
     args = parse_args()
     root_dir = os.path.join("/runs", f"run{args.run_id:03d}")
     problem = Problem.ONE
