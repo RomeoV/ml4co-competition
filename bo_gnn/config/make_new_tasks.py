@@ -55,7 +55,7 @@ def _get_latest_checkpoint_path(run_id):
     def sort_by_num(s):
         return re.search("[0-9]+", s).group(0)
 
-    run_path = os.path.join("runs", f"run{run_id:03d}")
+    run_path = os.path.join("/runs", f"run{run_id:03d}")
     if not os.path.isdir(os.path.join(run_path, "lightning_logs")):
         return None
     latest_version = sorted(os.listdir(os.path.join(run_path, "lightning_logs")), key=sort_by_num)[-1]
@@ -173,7 +173,7 @@ def main():
                 "emphasis_config_encoding": map(operator.itemgetter(3), chosen_configs),
             }
         )
-        out_dir = os.path.join("runs", f"run{args.run_id:03d}", "tasks", f"gen_input{args.iter+1:04d}")
+        out_dir = os.path.join("/runs", f"run{args.run_id:03d}", "tasks", f"gen_input{args.iter+1:04d}")
         os.makedirs(out_dir, exist_ok=True)
         df.to_csv(os.path.join(out_dir, f"task{t:02d}.csv"), index=False)
 

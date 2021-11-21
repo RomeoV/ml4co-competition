@@ -38,7 +38,7 @@ def parse_args():
 
 def main():
     args = parse_args()
-    root_dir = os.path.join("runs", f"run{args.run_id:03d}")
+    root_dir = os.path.join("/runs", f"run{args.run_id:03d}")
     problem = Problem.ONE
     # dry = subprocess.run(["hostname"], capture_output=True).stdout.decode()[:3] != "eu-"
     dry = False
@@ -123,7 +123,7 @@ def _get_latest_checkpoint_path(run_id):
     def sort_by_num(s):
         return re.search("[0-9]+", s).group(0)
 
-    run_path = os.path.join("runs", f"run{run_id:03d}")
+    run_path = os.path.join("/runs", f"run{run_id:03d}")
     if not os.path.isdir(os.path.join(run_path, "lightning_logs")):
         return None
     latest_version = sorted(os.listdir(os.path.join(run_path, "lightning_logs")), key=sort_by_num)[-1]

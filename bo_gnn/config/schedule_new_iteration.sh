@@ -7,7 +7,7 @@ if [[ $2 -ne 0 ]]; then
     for i in $(seq 0 9); do
         bsub -J gen_data_job_$i \
             -G ls_krausea -n 20 -W 1:00 -R singularity -R "rusage[mem=4000]" \
-            singularity exec --bind /cluster/home/rvalentin/Documents/ml4co-competition:/code,/cluster/project/infk/krause/rvalentin/instances:/instances \
+            singularity exec --bind /cluster/home/rvalentin/Documents/ml4co-competition:/code,/cluster/project/infk/krause/rvalentin/instances:/instances,/cluster/project/infk/krause/rvalentin/runs:/runs \
             --pwd /code/bo_gnn/config /cluster/home/rvalentin/singularity-images/ml4co-gpu.sif \
             python -m generate_data -r $1 -i $2 -t $i -f train -T 300 -j 20
     done
@@ -16,7 +16,7 @@ if [[ $2 -ne 0 ]]; then
     bsub -w "done(gen_data_job_0)&&done(gen_data_job_1)&&done(gen_data_job_2)&&done(gen_data_job_3)&&done(gen_data_job_4)&&done(gen_data_job_5)&&done(gen_data_job_6)&&done(gen_data_job_7)&&done(gen_data_job_8)&&done(gen_data_job_9)" \
         -J train_gnn_job \
         -G ls_krausea -n 3 -W 0:15 -R singularity -R "rusage[ngpus_excl_p=1,mem=4000]" -R "select[gpu_mtotal0>=30000]" \
-        singularity exec --bind /cluster/home/rvalentin/Documents/ml4co-competition:/ml4co,/cluster/project/infk/krause/rvalentin/instances:/instances \
+        singularity exec --bind /cluster/home/rvalentin/Documents/ml4co-competition:/ml4co,/cluster/project/infk/krause/rvalentin/instances:/instances,/cluster/project/infk/krause/rvalentin/runs:/runs \
         --pwd /ml4co/bo_gnn/config --nv /cluster/project/infk/krause/rvalentin/singularity-images/ml4co-gpu.sif \
         python train_gnn.py -r $1 -t $((150 * $2))
 else
@@ -27,7 +27,7 @@ fi
 bsub -w "done(train_gnn_job)" \
     -J make_new_tasks_job \
     -G ls_krausea -n 3 -W 0:15 -R singularity -R "rusage[ngpus_excl_p=1,mem=4000]" -R "select[gpu_mtotal0>=30000]" \
-    singularity exec --bind /cluster/home/rvalentin/Documents/ml4co-competition:/ml4co,/cluster/project/infk/krause/rvalentin/instances:/instances \
+    singularity exec --bind /cluster/home/rvalentin/Documents/ml4co-competition:/ml4co,/cluster/project/infk/krause/rvalentin/instances:/instances,/cluster/project/infk/krause/rvalentin/runs:/runs \
     --pwd /ml4co/bo_gnn/config --nv /cluster/project/infk/krause/rvalentin/singularity-images/ml4co-gpu.sif \
     python make_new_tasks.py -r $1 -i $2 -t 10 -j 20
 
