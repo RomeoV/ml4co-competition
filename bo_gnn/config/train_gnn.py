@@ -37,7 +37,6 @@ def parse_args():
 
 
 def main():
-    torch.multiprocessing.set_sharing_strategy('file_system')
     args = parse_args()
     root_dir = os.path.join("/runs", f"run{args.run_id:03d}")
     problem = Problem.ONE
@@ -68,7 +67,7 @@ def main():
         shuffle=True,
         batch_size=64 if not dry else 4,
         drop_last=False,
-        num_workers=8 if not dry else 0,
+        num_workers=4 if not dry else 0,
         pin_memory=torch.cuda.is_available() and not dry,
     )
     configs_in_dataset = (
@@ -97,7 +96,7 @@ def main():
         shuffle=False,
         batch_size=64 if not dry else 4,
         drop_last=False,
-        num_workers=8 if not dry else 0,
+        num_workers=4 if not dry else 0,
         pin_memory=torch.cuda.is_available() and not dry,
     )
 
