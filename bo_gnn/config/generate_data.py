@@ -186,40 +186,16 @@ def _write_results_to_csv(output_file, results: List[Dict], fmt_fcts: List[Calla
 def _config_encoding_to_dict(config_encoding):
     presolve, heuristic, separating, emphasis = config_encoding
 
-    SETTINGS = OrderedDict(
-        {
-            0: pyscipopt.SCIP_PARAMSETTING.OFF,
-            1: pyscipopt.SCIP_PARAMSETTING.DEFAULT,
-            2: pyscipopt.SCIP_PARAMSETTING.FAST,
-            3: pyscipopt.SCIP_PARAMSETTING.AGGRESSIVE,
-        }
-    )
-    EMPHASIS_SETTINGS = OrderedDict(
-        {
-            0: pyscipopt.SCIP_PARAMEMPHASIS.DEFAULT,
-            1: pyscipopt.SCIP_PARAMEMPHASIS.CPSOLVER,
-            2: pyscipopt.SCIP_PARAMEMPHASIS.EASYCIP,
-            3: pyscipopt.SCIP_PARAMEMPHASIS.FEASIBILITY,
-            4: pyscipopt.SCIP_PARAMEMPHASIS.HARDLP,
-            5: pyscipopt.SCIP_PARAMEMPHASIS.OPTIMALITY,
-            6: pyscipopt.SCIP_PARAMEMPHASIS.COUNTER,
-            7: pyscipopt.SCIP_PARAMEMPHASIS.PHASEFEAS,
-            8: pyscipopt.SCIP_PARAMEMPHASIS.PHASEIMPROVE,
-            9: pyscipopt.SCIP_PARAMEMPHASIS.PHASEPROOF,
-            # 10: pyscipopt.SCIP_PARAMEMPHASIS.NUMERICS,
-        }
-    )
-
     model = pyscipopt.Model()
     # we pick 'emphasis' first as it overrides a lot of other options
     if emphasis != 0:  # don't do anything in default case
-        model.setEmphasis(EMPHASIS_SETTINGS[emphasis])
+        model.setEmphasis(emphasis)
     if presolve != 1:
-        model.setPresolve(SETTINGS[presolve])
+        model.setPresolve(presolve)
     if heuristic != 1:
-        model.setHeuristics(SETTINGS[heuristic])
+        model.setHeuristics(heuristic)
     if separating != 1:
-        model.setSeparating(SETTINGS[separating])
+        model.setSeparating(separating)
 
     return _clean_config(model.getParams())
 
