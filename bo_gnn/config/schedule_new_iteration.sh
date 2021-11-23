@@ -9,7 +9,7 @@ if [[ $2 -ne 0 ]]; then
             -G ls_krausea -n 20 -W 1:00 -R singularity -R "rusage[mem=4000]" \
             singularity exec --bind /cluster/home/rvalentin/Documents/ml4co-competition:/code,/cluster/project/infk/krause/rvalentin/instances:/instances,/cluster/project/infk/krause/rvalentin/runs:/runs \
             --pwd /code/bo_gnn/config /cluster/home/rvalentin/singularity-images/ml4co-gpu.sif \
-            python -m generate_data -r $1 -i $2 -t $i -f train -T 300 -j 20
+            python -m generate_data -r $1 -i $2 -t $i -f train -p one -T 300 -j 20
     done
 
     ### LAUNCH GNN TRAINING ON GPU JOB, THEN (AFTER FINISHING) LAUNCH TASK CREATOR ON THE SAME NODE

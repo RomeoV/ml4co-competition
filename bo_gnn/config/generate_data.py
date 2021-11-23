@@ -26,6 +26,7 @@ from environments import Configuring
 from environments import Configuring as Environment
 from rewards import TimeLimitPrimalDualIntegral
 from config_utils import sampleActions, getParamsFromFile
+from data_utils.dataset import Problem
 
 
 def parse_args():
@@ -69,6 +70,14 @@ def parse_args():
         required=False,
     )
     parser.add_argument(
+        "-p",
+        "--problem",
+        help="Problem folder to evaluate.",
+        type=str,
+        choices=("one", "two"),
+        required=True,
+    )
+    parser.add_argument(
         "-T",
         "--time_limit",
         help="Solver time limit (in seconds).",
@@ -78,6 +87,7 @@ def parse_args():
     parser.add_argument("-d", "--dry_run", help="Dry run.", action="store_true")
 
     args = parser.parse_args()
+    args.problem = Problem.ONE if args.problem == "one" else Problem.TWO
     return args
 
 
@@ -92,6 +102,7 @@ def main():
     solve_random_instances_and_periodically_write_to_file(
         task_df=task_df,
         n_jobs=args.num_jobs,
+        problem=args.problem,
         folder=args.folder,
         output_file=output_file,
         time_limit=args.time_limit,
@@ -100,9 +111,9 @@ def main():
 
 
 def solve_random_instances_and_periodically_write_to_file(
-    task_df, output_file, folder, n_jobs=-1, time_limit=5 * 60, dry_run=True
+        task_df, output_file, problem, folder, n_jobs=-1, time_limit=5 * 60, dry_run=True
 ):
-    instance_path = pathlib.Path(f"/instances/1_item_placement/{folder}")
+    instance_path = pathlib.Path(f"/instances/{problem.value}/{folder}")
     instance_files = list(map(str, instance_path.glob("*.mps.gz")))
 
     instances = [os.path.join(instance_path, f) for f in task_df.instance_file]
