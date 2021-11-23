@@ -15,10 +15,10 @@ if [[ $2 -ne 0 ]]; then
     ### LAUNCH GNN TRAINING ON GPU JOB, THEN (AFTER FINISHING) LAUNCH TASK CREATOR ON THE SAME NODE
     bsub -w "done(gen_data_job_0)&&done(gen_data_job_1)&&done(gen_data_job_2)&&done(gen_data_job_3)&&done(gen_data_job_4)&&done(gen_data_job_5)&&done(gen_data_job_6)&&done(gen_data_job_7)&&done(gen_data_job_8)&&done(gen_data_job_9)" \
         -J train_gnn_job \
-        -G ls_krausea -n 3 -W 0:15 -R singularity -R "rusage[ngpus_excl_p=1,mem=4000]" \
+        -G ls_krausea -n 8 -W 0:15 -R singularity -R "rusage[ngpus_excl_p=1,mem=4000]" \
         singularity exec --bind /cluster/home/rvalentin/Documents/ml4co-competition:/ml4co,/cluster/project/infk/krause/rvalentin/instances:/instances,/cluster/project/infk/krause/rvalentin/runs:/runs \
         --pwd /ml4co/bo_gnn/config --nv /cluster/project/infk/krause/rvalentin/singularity-images/ml4co-gpu.sif \
-        python train_gnn.py -r $1 -t $((150 * $2))
+        python train_gnn.py -r $1 -t 150
 else
     ### IN THE FIRST ITERATION, WE SAMPLE FROM A RANDOM MODEL
     bsub -J train_gnn_job echo "In iteration 0 we don't need to train yet"

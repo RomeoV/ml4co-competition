@@ -43,18 +43,22 @@ def main():
     # dry = subprocess.run(["hostname"], capture_output=True).stdout.decode()[:3] != "eu-"
     dry = False
 
-    model = MilpGNNTrainable(
-        config_dim=4,
-        optimizer="RMSprop",
-        weight_decay=1e-3,
-        initial_lr=5e-4,
-        batch_size=64 if not dry else 4,
-        n_gnn_layers=4,
-        gnn_hidden_dim=64,
-        ensemble_size=3,
-        git_hash=_get_current_git_hash(),
-        problem=problem,
-    )
+    latest_checkpoint = _get_latest_checkpoint_path(args.run_id)
+    if latest_checkpoint:
+        model = MilpGNNTrainable.load_from_checkpoint(latest_checkpoint)
+    else:
+        model = MilpGNNTrainable(
+            config_dim=4,
+            optimizer="RMSprop",
+            weight_decay=1e-3,
+            initial_lr=5e-4,
+            batch_size=64 if not dry else 4,
+            n_gnn_layers=4,
+            gnn_hidden_dim=64,
+            ensemble_size=3,
+            git_hash=_get_current_git_hash(),
+            problem=problem,
+        )
     data_train = DataLoader(
         MilpDataset(
             os.path.join(root_dir, "data"),
@@ -112,7 +116,6 @@ def main():
         ],
         default_root_dir=root_dir,
         max_time=datetime.timedelta(seconds=args.max_time) if args.max_time else None,
-        resume_from_checkpoint=_get_latest_checkpoint_path(args.run_id),
     )
     trainer.fit(model, train_dataloaders=data_train, val_dataloaders=data_valid)
 
