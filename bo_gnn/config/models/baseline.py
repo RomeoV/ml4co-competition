@@ -32,7 +32,8 @@ class ConfigPerformanceRegressor(torch.nn.Module):
              F.one_hot(config_batch[:, 2].long(), num_classes=4).float(),
              F.one_hot(config_batch[:, 3].long(), num_classes=10).float()],
             axis=-1
-        )
+        )  # note that one_hot is not differentiable and drops the 'requires_grad' attribute
+        config_batch_as_one_hot.requires_grad_(config_batch.requires_grad)
         config_embedding = self.config_emb(config_batch_as_one_hot)
 
         if single_instance:
