@@ -67,18 +67,8 @@ class EvaluatePredictedParametersCallback(pytorch_lightning.callbacks.Callback):
             return percentile
 
         def get_instance_data(instance_file):
-            # TODO clean this up
-            with open(
-                os.path.join(self.instance_dir, instance_file.replace(".mps.gz", ".pkl")),
-                "rb",
-            ) as infile:
-                instance_description_pkl = pickle.load(infile)
-                instance_data = MilpBipartiteData(
-                    var_feats=instance_description_pkl.variable_features,
-                    cstr_feats=instance_description_pkl.constraint_features,
-                    edge_indices=instance_description_pkl.edge_features.indices,
-                    edge_values=instance_description_pkl.edge_features.values,
-                )
+            instance_file_path = os.path.join(self.instance_dir, instance_file.replace(".mps.gz", ".pkl"))
+            instance_data = MilpBipartiteData.load_from_picklefile(instance_file_path)
             return instance_data
 
         percentiles = {"mean": [], "optimistic": [], "pessimistic": []}

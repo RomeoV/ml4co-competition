@@ -88,17 +88,8 @@ class MilpDataset(torch.utils.data.Dataset):
         self.instance_graphs = {}
         print(f"Preloading dataset {mode.name}")
         for instance_file in tqdm(self.csv_data_full.instance_file.unique()):
-            with open(
-                    os.path.join(self.instance_path, instance_file.replace(".mps.gz", ".pkl")),
-                    "rb",
-            ) as infile:
-                instance_description_pkl = pickle.load(infile)
-                self.instance_graphs[instance_file] = MilpBipartiteData(
-                    var_feats=instance_description_pkl.variable_features,
-                    cstr_feats=instance_description_pkl.constraint_features,
-                    edge_indices=instance_description_pkl.edge_features.indices,
-                    edge_values=instance_description_pkl.edge_features.values,
-                )
+            instance_file_path = os.path.join(self.instance_path, instance_file.replace(".mps.gz", ".pkl"))
+            self.instance_graphs[instance_file] = MilpBipartiteData.load_from_picklefile(instance_file_path)
 
         self.csv_data = self.csv_data_full[self.cols]
 
