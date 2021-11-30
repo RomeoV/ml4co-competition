@@ -16,6 +16,8 @@ from data_utils.dataset import Problem
 from train_gnn import MilpGNNTrainable
 from torch_geometric.data import Batch
 
+from make_new_tasks import calibrate_epistemic_uncertainty
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -56,6 +58,8 @@ def main():
     model = MilpGNNTrainable.load_from_checkpoint(latest_checkpoint_path).to(device)
     model.eval()
 
+    lam = calibrate_epistemic_uncertainty(model)
+
     df_list = []
     instance_path = pathlib.Path("/instances/1_item_placement/valid")
     instance_files = sorted(list(map(str, instance_path.glob("*.mps.gz"))))
@@ -66,10 +70,8 @@ def main():
 
         mean_mu, epi_var, configs = _predict_instance_for_all_configs(model, instance_batch)
 
-        best_config = configs[torch.argmin(mean_mu)]
-        foo = torch.argmin(mean_mu)
-
-        get = lambda i: operator.itemgetter(i)
+        # don't pick samples with too high epistemic uncertainty
+        best_config = configs[torch.argmin(mean_mu + (epi_var * lam > 0.25) * 1e9)]
         df = pd.DataFrame(
             {
                 "instance_file": f,
