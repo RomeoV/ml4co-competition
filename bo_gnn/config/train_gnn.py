@@ -106,10 +106,10 @@ def main():
     trainer = Trainer(
         gpus=1 if torch.cuda.is_available() else 0,
         callbacks=[
-            EvaluatePredictedParametersCallback(
-                configs=configs_in_dataset,
-                instance_dir=f"/instances/{problem.value}/{Folder.TRAIN.value}",
-            ),
+            # EvaluatePredictedParametersCallback(
+            #     configs=configs_in_dataset,
+            #     instance_dir=f"/instances/{problem.value}/{Folder.TRAIN.value}",
+            # ),
             pytorch_lightning.callbacks.LearningRateMonitor(logging_interval="epoch"),
             pytorch_lightning.callbacks.ModelCheckpoint(save_last=True),
         ],

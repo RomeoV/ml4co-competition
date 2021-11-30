@@ -173,7 +173,7 @@ def main():
                 "emphasis_config_encoding": map(operator.itemgetter(3), chosen_configs),
             }
         )
-        out_dir = os.path.join("/runs", f"run{args.run_id:03d}", "tasks", f"gen_input{args.iter+1:04d}")
+        out_dir = os.path.join("/runs", f"run{args.run_id:03d}", "tasks_train", f"gen_input{args.iter+1:04d}")
         os.makedirs(out_dir, exist_ok=True)
         df.to_csv(os.path.join(out_dir, f"task{t:02d}.csv"), index=False)
 
