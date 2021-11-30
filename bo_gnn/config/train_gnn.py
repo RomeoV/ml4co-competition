@@ -40,8 +40,7 @@ def main():
     args = parse_args()
     root_dir = os.path.join("/runs", f"run{args.run_id:03d}")
     problem = Problem.ONE
-    # dry = subprocess.run(["hostname"], capture_output=True).stdout.decode()[:3] != "eu-"
-    dry = False
+    dry = subprocess.run(["hostname"], capture_output=True).stdout.decode()[:3] != "eu-"
 
     latest_checkpoint = _get_latest_checkpoint_path(args.run_id)
     if latest_checkpoint:
@@ -50,7 +49,7 @@ def main():
         model = MilpGNNTrainable(
             config_dim=4,
             optimizer="RMSprop",
-            weight_decay=1e-3,
+            weight_decay=1e-2,
             initial_lr=5e-4,
             batch_size=64 if not dry else 4,
             n_gnn_layers=4,
@@ -66,7 +65,7 @@ def main():
             mode=Mode.TRAIN,
             problem=problem,
             dry=dry,
-            instance_dir=f"{'../..' if dry else ''}/instances/{problem.value}/{Folder.TRAIN.value}",
+            instance_dir=f"/instances/{problem.value}/{Folder.TRAIN.value}",
         ),
         shuffle=True,
         batch_size=64 if not dry else 4,
@@ -95,7 +94,7 @@ def main():
             mode=Mode.VALID,
             problem=problem,
             dry=dry,
-            instance_dir=f"{'../..' if dry else ''}/instances/{problem.value}/{Folder.TRAIN.value}",
+            instance_dir=f"/instances/{problem.value}/{Folder.TRAIN.value}",
         ),
         shuffle=False,
         batch_size=64 if not dry else 4,
@@ -109,7 +108,7 @@ def main():
         callbacks=[
             EvaluatePredictedParametersCallback(
                 configs=configs_in_dataset,
-                instance_dir=f"{'../..' if dry else ''}/instances/{problem.value}/{Folder.TRAIN.value}",
+                instance_dir=f"/instances/{problem.value}/{Folder.TRAIN.value}",
             ),
             pytorch_lightning.callbacks.LearningRateMonitor(logging_interval="epoch"),
             pytorch_lightning.callbacks.ModelCheckpoint(save_last=True),

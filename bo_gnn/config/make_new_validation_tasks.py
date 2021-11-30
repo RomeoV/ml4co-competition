@@ -41,9 +41,9 @@ def _predict_instance_for_all_configs(model, instance_batch):
     config_list = [(*tpl, 0) for tpl in itertools.product(range(4), repeat=3)]
     config_batch= torch.tensor(
         config_list, dtype=torch.float32
-    )
-    _, mean_mu, _, _ = model.forward((instance_batch, config_batch), single_instance=True)
-    return mean_mu, config_list
+    ).to(model.device)
+    _, mean_mu, _, epi_var = model.forward((instance_batch, config_batch), single_instance=True)
+    return mean_mu, epi_var, config_list
 
 
 def main():
@@ -64,7 +64,7 @@ def main():
         instance_file_path = os.path.join(instance_path, f.replace(".mps.gz", ".pkl"))
         instance_batch = Batch.from_data_list([MilpBipartiteData.load_from_picklefile(instance_file_path)])
 
-        mean_mu, configs = _predict_instance_for_all_configs(model, instance_batch)
+        mean_mu, epi_var, configs = _predict_instance_for_all_configs(model, instance_batch)
 
         best_config = configs[torch.argmin(mean_mu)]
         foo = torch.argmin(mean_mu)
