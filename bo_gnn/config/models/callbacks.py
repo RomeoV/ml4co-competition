@@ -18,7 +18,6 @@ class EvaluatePredictedParametersCallback(pytorch_lightning.callbacks.Callback):
 
     def on_train_epoch_start(self, trainer, pl_module):
         def find_best_configs(pl_module, instance):
-            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
             all_config_inputs = torch.stack(
                 [
                     torch.tensor(
@@ -28,9 +27,9 @@ class EvaluatePredictedParametersCallback(pytorch_lightning.callbacks.Callback):
                     for (a, b, c, d) in self.configs
                 ],
                 axis=0,
-            ).to(device)
+            ).to(pl_module.device)
 
-            instance_batch = Batch.from_data_list([instance]).to(device)
+            instance_batch = Batch.from_data_list([instance]).to(pl_module.device)
 
             pl_module.eval()
             preds, mean_mu, mean_var, epi_var = pl_module.forward(
