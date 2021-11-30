@@ -96,8 +96,9 @@ def main():
 
     task_file = os.path.join("/runs", f"run{args.run_id:03d}", "tasks", f"gen_input{args.iter:04d}", f"task{args.task_num:02d}.csv")
     task_df = pd.read_csv(task_file)
-    os.makedirs(os.path.join("/runs", f"run{args.run_id:03d}", "data"), exist_ok=True)
-    output_file = os.path.join("/runs", f"run{args.run_id:03d}", "data", f"dataset_iter{args.iter:04d}.csv")
+    outdir = os.path.join("/runs", f"run{args.run_id:03d}", f"data_{args.folder}")
+    os.makedirs(outdir, exist_ok=True)
+    output_file = os.path.join(outdir, f"dataset_iter{args.iter:04d}.csv")
 
     solve_random_instances_and_periodically_write_to_file(
         task_df=task_df,

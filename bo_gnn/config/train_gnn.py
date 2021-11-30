@@ -61,7 +61,7 @@ def main():
         )
     data_train = DataLoader(
         MilpDataset(
-            os.path.join(root_dir, "data"),
+            os.path.join(root_dir, "data_train"),
             folder=Folder.TRAIN,
             mode=Mode.TRAIN,
             problem=problem,
@@ -90,7 +90,7 @@ def main():
 
     data_valid = DataLoader(
         MilpDataset(
-            os.path.join(root_dir, "data"),
+            os.path.join(root_dir, "data_train"),
             folder=Folder.TRAIN,
             mode=Mode.VALID,
             problem=problem,
