@@ -13,16 +13,28 @@ class MilpBipartiteData(Data):
         cstr_feats,
         edge_indices,
         edge_values,
+        num_nodes = None,
+        var_batch_el = None,
+        cstr_batch_el = None
     ):
         super(MilpBipartiteData, self).__init__()
-        self.var_feats = torch.tensor(var_feats, dtype=torch.float32)
-        self.cstr_feats = torch.tensor(cstr_feats, dtype=torch.float32)
-        self.edge_index = torch.tensor(edge_indices.astype(np.int64), dtype=torch.long)
-        self.edge_attr = torch.tensor(edge_values, dtype=torch.float32)  # .unsqueeze(1)
+        self.var_feats = var_feats
+        self.cstr_feats = cstr_feats
+        self.edge_index = edge_indices
+        self.edge_attr = edge_values
         # self.y = torch.tensor([label], dtype=torch.float32)
-        self.num_nodes = self.var_feats.shape[1] + self.cstr_feats.shape[1]
-        self.var_batch_el = torch.zeros((self.var_feats.shape[0]), dtype=torch.long)
-        self.cstr_batch_el = torch.zeros((self.cstr_feats.shape[0]), dtype=torch.long)
+        if num_nodes is not None:
+            self.num_nodes = num_nodes
+        else:
+            self.num_nodes = self.var_feats.shape[1] + self.cstr_feats.shape[1]
+        if var_batch_el is not None:
+            self.var_batch_el = var_batch_el
+        else:
+            self.var_batch_el = torch.zeros((self.var_feats.shape[0]), dtype=torch.long)
+        if cstr_batch_el is not None:
+            self.cstr_batch_el = cstr_batch_el
+        else:
+            self.cstr_batch_el = torch.zeros((self.cstr_feats.shape[0]), dtype=torch.long)
 
     def pin_memory(self):
         self.var_feats = self.var_feats.pin_memory()
@@ -47,8 +59,8 @@ class MilpBipartiteData(Data):
         with open(path, "rb") as infile:
             instance_description_pkl = pickle.load(infile)
             return MilpBipartiteData(
-                var_feats=instance_description_pkl.variable_features,
-                cstr_feats=instance_description_pkl.constraint_features,
-                edge_indices=instance_description_pkl.edge_features.indices,
-                edge_values=instance_description_pkl.edge_features.values,
+                var_feats = torch.tensor(instance_description_pkl.variable_features, dtype=torch.float32),
+                cstr_feats = torch.tensor(instance_description_pkl.constraint_features, dtype=torch.float32),
+                edge_indices = torch.tensor(instance_description_pkl.edge_features.indices.astype(np.int64), dtype=torch.long),
+                edge_values = torch.tensor(instance_description_pkl.edge_features.values, dtype=torch.float32)  # .unsqueeze(1)
             )

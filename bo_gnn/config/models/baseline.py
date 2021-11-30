@@ -9,6 +9,7 @@ import numpy as np
 import unittest
 
 from data_utils.dataset import MilpDataset
+from data_utils.milp_data import MilpBipartiteData
 
 
 class ConfigPerformanceRegressor(torch.nn.Module):
@@ -172,10 +173,16 @@ class GNNFwd(torch.nn.Module):
         assert x_node.shape[-2] == x_node_.shape[-2]
         assert x_cstr.shape[-2] == x_cstr_.shape[-2]
 
-        data.var_feats = x_node_
-        data.cstr_feats = x_cstr_
+        data_retval = MilpBipartiteData(
+                var_feats = x_node_,
+                cstr_feats = x_cstr_,
+                edge_indices=data.edge_index,
+                edge_values=data.edge_attr,
+                num_nodes = data.num_nodes,
+                var_batch_el = data.var_batch_el,
+                cstr_batch_el = data.cstr_batch_el)
 
-        return data
+        return data_retval
 
 
 class ConfigEmbedding(torch.nn.Module):
