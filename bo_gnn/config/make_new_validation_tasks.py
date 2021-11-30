@@ -52,7 +52,7 @@ def main():
     # device = 'cuda' if torch.cuda.is_available else 'cpu'
     device = "cpu"
     latest_checkpoint_path = f"/runs/run{args.run_id:03d}/lightning_logs/version_{args.iter}/checkpoints/last.ckpt"
-    assert os.path.isfile(latest_checkpoint_path)
+    assert os.path.isfile(latest_checkpoint_path), latest_checkpoint_path
     model = MilpGNNTrainable.load_from_checkpoint(latest_checkpoint_path).to(device)
     model.eval()
 

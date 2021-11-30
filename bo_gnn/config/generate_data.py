@@ -94,7 +94,7 @@ def parse_args():
 def main():
     args = parse_args()
 
-    task_file = os.path.join("/runs", f"run{args.run_id:03d}", "tasks", f"gen_input{args.iter:04d}", f"task{args.task_num:02d}.csv")
+    task_file = os.path.join("/runs", f"run{args.run_id:03d}", f"tasks_{args.folder}", f"gen_input{args.iter:04d}", f"task{args.task_num:02d}.csv")
     task_df = pd.read_csv(task_file)
     outdir = os.path.join("/runs", f"run{args.run_id:03d}", f"data_{args.folder}")
     os.makedirs(outdir, exist_ok=True)

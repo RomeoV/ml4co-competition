@@ -18,7 +18,23 @@ if [[ $2 -ne 0 ]]; then
         -G ls_krausea -n 8 -W 0:15 -R singularity -R "rusage[ngpus_excl_p=1,mem=4000]" \
         singularity exec --bind /cluster/home/rvalentin/Documents/ml4co-competition:/ml4co,/cluster/project/infk/krause/rvalentin/instances:/instances,/cluster/project/infk/krause/rvalentin/runs:/runs \
         --pwd /ml4co/bo_gnn/config --nv /cluster/project/infk/krause/rvalentin/singularity-images/ml4co-gpu.sif \
-        python train_gnn.py -r $1 -t 150
+        python train_gnn.py -r $1 -t 180
+
+    bsub -w "done(train_gnn_job)" \
+        -J make_new_validation_tasks_job \
+        -G ls_krausea -n 4 -W 0:15 -R singularity -R "rusage[mem=4000]" \
+        singularity exec --bind /cluster/home/rvalentin/Documents/ml4co-competition:/ml4co,/cluster/project/infk/krause/rvalentin/instances:/instances,/cluster/project/infk/krause/rvalentin/runs:/runs \
+        --pwd /ml4co/bo_gnn/config --nv /cluster/project/infk/krause/rvalentin/singularity-images/ml4co-gpu.sif \
+        python make_new_validation_tasks.py -r $1 -i $(($2 - 1))
+
+    for i in $(seq 0 4); do
+        bsub -J gen_valid_data_job_$i \
+            -w "done(make_new_validation_tasks_job)" \
+            -G ls_krausea -n 20 -W 1:00 -R singularity -R "rusage[mem=4000]" \
+            singularity exec --bind /cluster/home/rvalentin/Documents/ml4co-competition:/code,/cluster/project/infk/krause/rvalentin/instances:/instances,/cluster/project/infk/krause/rvalentin/runs:/runs \
+            --pwd /code/bo_gnn/config /cluster/home/rvalentin/singularity-images/ml4co-gpu.sif \
+            python -m generate_data -r $1 -i $(($2 - 1)) -t $i -f valid -p one -T 300 -j 20
+    done
 else
     ### IN THE FIRST ITERATION, WE SAMPLE FROM A RANDOM MODEL
     bsub -J train_gnn_job echo "In iteration 0 we don't need to train yet"
