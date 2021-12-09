@@ -1,65 +1,60 @@
-## Machine Learning for Combinatorial Optimization - NeurIPS 2021 Competition
+## Machine Learning for Combinatorial Optimization - NeurIPS 2021 Competition (Configuration task)
+### This is the code repository of team "MixedInspiredLamePuns"
+> Note that this repository is forked from [github.com/ds4dm/ml4co-competition](https://github.com/ds4dm/ml4co-competition). See [here](https://www.ecole.ai/2021/ml4co-competition/) for the official competition website.
 
-**[Official website](https://www.ecole.ai/2021/ml4co-competition/)**: competition guidelines, team registration, rules, and leaderboard.
+> For a related application, trying to explore the dataset using Bayesian Optimization, check out the [bo_gnn_seminar](https://github.com/RomeoV/ml4co-competition/tree/bo_gnn_seminar) branch.
 
 
-This repository contains the base code that supports the competition, as well as
-some code examples and baseline implementations for each of the three decision tasks
-that participants can compete in (`primal`, `dual`, `config`). It is organized as follows
+[**Leaderboard results**](https://www.ecole.ai/2021/ml4co-competition/#leaderboard)
+
+- rank 3 / 15 on the global leaderboard
+- rank 1 / 7 on the student leaderboard
+
+### Poster
+See also the [pdf version](./figs/MixedInspiringLamePuns_poster.pdf).
+![poster](./figs/MixedInspiringLamePuns_poster.png)
+
+
+### Code structure
 ```
-instances/    -> the datasets
-common/       -> the common code base, i.e., environments, rewards and evaluation scripts
-submissions/  -> the team submissions
-  example/    -> an example submission
-singularity/  -> the singularity image and scripts of our evaluation pipeline
+.
+├── bo_gnn                              <-- main directory
+│   └── config
+│       ├── conda.yaml
+│       ├── config_utils.py
+│       ├── data_utils
+│       │   ├── dataset.py              <-- dataset loader
+│       │   └── milp_data.py            <-- bipartite graph representation
+│       ├── Dockerfile.cpu              <-- Dockefile for data generation
+│       ├── Dockerfile.gpu              <-- Dockerfile for GNN training
+│       ├── generate_data.py            <-- massively parallel data generation script
+│       ├── models
+│       │   ├── baseline.py             <-- GNN definition
+│       │   └── callbacks.py
+│       ├── mps_to_pkl.py
+│       ├── plot_run_performance.py
+│       ├── scripts
+│       └── train_gnn.py                <-- main training loop & ensembling
+├── common                              <-- pre-defined evaluation environments
+│   ├── environments.py
+│   ├── evaluate.py
+│   └── rewards.py
+├── instances                           <-- raw data location
+├── README.md
+├── submissions                         <-- submission code
+│   └── MixedInspiringLamePuns
+│       ├── agents
+│       ├── callbacks.py
+│       ├── conda.yaml
+│       ├── data_utils
+│       ├── heuristics_schedules
+│       ├── init.sh
+│       ├── models
+│       ├── param_configurations
+│       ├── parameter_configuration_mapping
+│       ├── results
+│       ├── trained_model_checkpoints
+│       └── train_gnn.py
+└── TASKS.md
+
 ```
-
-### Documentation
-
- - **[Getting Started](START.md)**: get the data, implement and evaluate your agent, make a submission.
-
- - **[Data description](DATA.md)**: the three datasets (`item_placement`, `load_balancing`, `anonymous`) and the data files.
-
- - **[Tasks description](TASKS.md)**: how we implemented each task (`primal`, `dual`, `config`).
-
- - **[Evaluation pipeline](PIPELINE.md)**: make sure your code installs and runs within our pipeline before you submit.
-
- - **[Evaluation platform](PLATFORM.md)**: the hardware and software specifications of the platform your code will be evaluated on.
-
- - **APIs**: **[Ecole](https://doc.ecole.ai/)** - **[SCIP](https://scipopt.org/doc/html/)** - **[PySCIPOpt](https://scipopt.github.io/PySCIPOpt/docs/html/)**
-
-### Final evaluation
-
-During the competition we will evaluate submissions
-on a weekly basis, and update our online leaderboards
-while the competition is running. Participants do not have
-to send a submission every week, but are encouraged to submit
-regularly to make the competition a live event. In order to
-prevent test overfitting, those intermediate evaluations will
-be performed on a fixed subset of the test set (20%),
-while only the final evaluation, which will tell the winners, will be
-performed on the entire test set.
-
-### Additional remarks
-
-We provide an official support to participants via the
-[Github discussions](https://github.com/ds4dm/ml4co-competition/discussions)
-feature. Please direct any technical or general question
-regarding the competition there, and feel free to answer
-the questions of other participants as well. We will not provide a
-privileged support to any of the participants, except in situations where
-it concerns information about their submission which they do not want to share.
-To contact us directly, use the competition's email adress: [ml4co.competition@gmail.com
-](mailto:ml4co.competition@gmail.com).
-
-We will not run the training of your ML models. Please send us
-only your final, pre-trained model, ready for evaluation.
-
-We only offer support for Linux and MacOS, the Windows platform being
-currently unsupported by Ecole.
-
-### Sponsors
-
-We thank [Compute-Canada](https://www.computecanada.ca/), [Calcul Québec](https://www.calculquebec.ca/en/) and
-[Westgrid](https://www.westgrid.ca/) for providing the infrastructure and compute ressources that allow us to
-run the competition.
