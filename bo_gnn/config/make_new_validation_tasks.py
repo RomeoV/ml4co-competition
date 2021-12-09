@@ -52,7 +52,7 @@ def main():
     args = parse_args()
 
     # device = 'cuda' if torch.cuda.is_available else 'cpu'
-    device = "cpu"
+    device = "cuda"
     latest_checkpoint_path = f"/runs/run{args.run_id:03d}/lightning_logs/version_{args.iter}/checkpoints/last.ckpt"
     assert os.path.isfile(latest_checkpoint_path), latest_checkpoint_path
     model = MilpGNNTrainable.load_from_checkpoint(latest_checkpoint_path).to(device)
@@ -61,17 +61,18 @@ def main():
     lam = calibrate_epistemic_uncertainty(model)
 
     df_list = []
-    instance_path = pathlib.Path("/instances/1_item_placement/valid")
+    instance_path = pathlib.Path("/instances/1_item_placement/train")
     instance_files = sorted(list(map(str, instance_path.glob("*.mps.gz"))))
     for f in tqdm.tqdm(instance_files):
         # "batch" with one element
         instance_file_path = os.path.join(instance_path, f.replace(".mps.gz", ".pkl"))
-        instance_batch = Batch.from_data_list([MilpBipartiteData.load_from_picklefile(instance_file_path)])
+        instance_batch = Batch.from_data_list([MilpBipartiteData.load_from_picklefile(instance_file_path)]).to(device)
 
         mean_mu, epi_var, configs = _predict_instance_for_all_configs(model, instance_batch)
 
         # don't pick samples with too high epistemic uncertainty
-        best_config = configs[torch.argmin(mean_mu + (epi_var * lam > 0.25) * 1e9)]
+        best_config = configs[torch.argmin(mean_mu)]
+        print(best_config)
         df = pd.DataFrame(
             {
                 "instance_file": f,

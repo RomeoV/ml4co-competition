@@ -65,7 +65,7 @@ def _get_latest_checkpoint_path(run_id):
 
 def _sample_random_instance_config_results(model, N):
     # device = 'cuda' if subprocess.run(["hostname"], capture_output=True).stdout.decode()[:3] != "eu-" else 'cpu'
-    device = 'cuda'
+    device = model.device
     if N == 0:
         return (torch.tensor([]),)*4, ([], [])
     elif N > 64:
