@@ -10,6 +10,10 @@
 - rank 3 / 15 on the global leaderboard
 - rank 1 / 7 on the student leaderboard
 
+
+### Arxiv Publication
+Read our short [write-up](https://arxiv.org/abs/2202.04910)
+
 ### Poster
 See also the [pdf version](./figs/MixedInspiringLamePuns_poster.pdf).
 ![poster](./figs/MixedInspiringLamePuns_poster.png)
