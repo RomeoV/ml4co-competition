@@ -12,7 +12,7 @@
 
 
 ### Arxiv Publication
-Read our short [write-up](https://arxiv.org/abs/2202.04910)
+Read our short [write-up](https://arxiv.org/abs/2202.04910).
 
 ### Poster
 See also the [pdf version](./figs/MixedInspiringLamePuns_poster.pdf).
